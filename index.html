@@ -47,7 +47,6 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </style></helmet>
 <div class="cx-shell" style="padding:44px;display:flex;flex-wrap:wrap;gap:38px;align-items:flex-start">
 <div style="display:flex;flex-direction:column;gap:12px">
-<div class="cx-label" style="display:flex;align-items:baseline;gap:9px"><span style="font:800 10.5px/1 ui-monospace,Menlo,monospace;padding:3px 7px;background:#201e1d;color:#f5ead8;border-radius:4px">APP</span><span style="font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:#201e1d">臭翔今天吃什么 · 可点原型</span><span style="font:700 11.5px/1.35 Nunito,sans-serif;color:rgba(32,30,29,.5)">首页无导航，小横条出 tab</span></div>
 
 <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ phoneW }}" height="{{ phoneH }}" hint-size="402px,874px">
 <div style="height:100%;min-height:100%;position:relative;background:#fdf8ee;display:flex;flex-direction:column;font-family:Nunito,'Noto Sans SC',sans-serif;overflow:hidden">
@@ -960,15 +959,6 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </x-import>
 </div>
 
-<div style="width:392px;display:flex;flex-direction:column;gap:14px;padding-top:38px">
-  <span style="font:400 22px/1 'ZCOOL KuaiLe',sans-serif;color:#201e1d">这一版做了什么</span>
-  <sc-for list="{{ notesList }}" as="n" hint-placeholder-count="7">
-    <div style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:22px;background:#fdf8ee;border:1px solid rgba(50,40,28,.1)">
-      <span style="font:400 19px/1.2 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ n.t }}</span>
-      <span style="font:700 12.5px/1.55 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.62)">{{ n.d }}</span>
-    </div>
-  </sc-for>
-</div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{}">
