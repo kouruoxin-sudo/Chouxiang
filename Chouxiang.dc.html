@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>
+@keyframes cx-breathe{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1.035) translateY(-1.5%)}}
+@keyframes cx-hop{0%,100%{transform:translateY(0) scale(1)}30%{transform:translateY(-7%) scale(1.02)}55%{transform:translateY(0) scale(.98,1.02)}}
+@keyframes cx-spin{to{transform:rotate(360deg)}}
+@keyframes cx-tilt{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes cx-wob{0%,100%{transform:rotate(-8deg) translateY(0)}50%{transform:rotate(5deg) translateY(-2%)}}
+@keyframes cx-shiver{0%,100%{transform:translateX(-1.2%) rotate(-1.5deg)}50%{transform:translateX(1.2%) rotate(1.5deg)}}
+@keyframes cx-sleep{0%,100%{transform:scale(1)}50%{transform:scale(1.02,.985)}}
+@keyframes cx-swayshy{0%,100%{transform:rotate(-2.2deg) translateY(0)}50%{transform:rotate(2.2deg) translateY(-1%)}}
+</style></helmet>
+<div style="width:100%;height:100%;display:grid;place-items:center">
+<img src="{{ src }}" alt="{{ alt }}" style="{{ imgStyle }}">
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:280,&quot;height&quot;:280},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;still&quot;,&quot;thinking&quot;,&quot;spinning&quot;,&quot;confused&quot;,&quot;success&quot;,&quot;excited&quot;,&quot;like&quot;,&quot;giggle&quot;,&quot;checkin&quot;,&quot;love&quot;,&quot;shy&quot;,&quot;enjoy&quot;,&quot;bored&quot;,&quot;spicy&quot;,&quot;clap&quot;,&quot;cry&quot;,&quot;dizzy&quot;,&quot;evil&quot;,&quot;calm&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;animate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;base&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;assets/cx-&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const A = {
+  idle:     { img: 'main',    anim: 'cx-breathe 3.6s ease-in-out infinite', alt: '臭翔在轻轻呼吸' },
+  still:    { img: 'main',    anim: 'none',                                 alt: '臭翔' },
+  thinking: { img: 'main',    anim: 'cx-tilt 3s ease-in-out infinite',      alt: '臭翔在想事情' },
+  spinning: { img: 'main',    anim: 'cx-spin 1.15s linear infinite',        alt: '臭翔在转圈抽签' },
+  confused: { img: 'confused', anim: 'cx-wob 2.6s ease-in-out infinite',    alt: '臭翔有点疑惑' },
+  clap:     { img: 'clap',    anim: 'cx-hop .8s ease-in-out infinite',      alt: '臭翔拍手期待' },
+  cry:      { img: 'cry',     anim: 'cx-shiver .5s ease-in-out infinite',   alt: '臭翔哭了' },
+  dizzy:    { img: 'dizzy',   anim: 'cx-wob 1.1s ease-in-out infinite',     alt: '臭翔转晕了' },
+  evil:     { img: 'evil',    anim: 'cx-tilt 2.2s ease-in-out infinite',    alt: '臭翔坏笑吐舌头' },
+  calm:     { img: 'calm',    anim: 'cx-sleep 5s ease-in-out infinite',     alt: '臭翔闭着眼安安静静' },
+  success:  { img: 'happy',   anim: 'cx-hop .78s ease-in-out infinite',     alt: '臭翔开心地跳' },
+  excited:  { img: 'happy',   anim: 'cx-hop .52s ease-in-out infinite',     alt: '臭翔兴奋地跳' },
+  like:     { img: 'like',      anim: 'cx-hop .9s ease-in-out infinite',      alt: '臭翔喜欢这个' },
+  giggle:   { img: 'giggle',    anim: 'cx-swayshy 1.6s ease-in-out infinite', alt: '臭翔捂嘴偷笑' },
+  checkin:  { img: 'like',      anim: 'cx-hop .66s ease-in-out infinite',     alt: '臭翔为你打卡庆祝' },
+  love:     { img: 'love',      anim: 'cx-hop .7s ease-in-out infinite',      alt: '臭翔超爱这个' },
+  shy:      { img: 'want',      anim: 'cx-swayshy 2.4s ease-in-out infinite', alt: '臭翔害羞地戳手指' },
+  enjoy:    { img: 'enjoy',     anim: 'cx-breathe 4.2s ease-in-out infinite', alt: '臭翔吃得很满足' },
+  bored:    { img: 'liedown',   anim: 'cx-sleep 4.5s ease-in-out infinite',   alt: '臭翔躺平了，腻了' },
+  spicy:    { img: 'spicy',     anim: 'cx-shiver .35s ease-in-out infinite',  alt: '臭翔被辣到了' }
+};
+
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const s = A[p.state] || A.idle;
+    return {
+      src: (p.base || 'assets/cx-') + s.img + '.png',
+      alt: s.alt,
+      imgStyle: {
+        width: '100%', height: '100%', objectFit: 'contain', display: 'block',
+        animation: p.animate === false ? 'none' : s.anim,
+        transformOrigin: '50% 55%',
+        filter: p.shadow ? 'drop-shadow(0 14px 20px rgba(140,73,26,.22))' : 'none'
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

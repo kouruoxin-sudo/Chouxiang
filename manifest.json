@@ -1,0 +1,16 @@
+{
+  "name": "臭翔今天吃什么",
+  "short_name": "臭翔",
+  "description": "帮菜菜决定今天吃什么",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf8ee",
+  "theme_color": "#ecb75e",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "./assets/cx-icon-face.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/cx-icon-face.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

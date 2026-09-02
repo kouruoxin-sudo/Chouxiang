@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>打卡地图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html,body{margin:0;height:100%;background:#f3e7cf;font-family:Nunito,"Noto Sans SC",system-ui,sans-serif;overflow:hidden}
+  #map{position:absolute;inset:0;background:#f3e7cf}
+  .leaflet-tile-pane{filter:sepia(.42) saturate(.72) brightness(1.06) contrast(.9)}
+  .leaflet-container{background:#f3e7cf;font-family:inherit}
+  .leaflet-control-zoom a{background:#fdf8ee;color:#8c491a;border:none;font-weight:800;width:32px;height:32px;line-height:32px;font-size:17px}
+  .leaflet-control-zoom a:first-child{border-radius:14px 14px 0 0}
+  .leaflet-control-zoom a:last-child{border-radius:0 0 14px 14px}
+  .leaflet-control-zoom a:hover{background:#eee0c4;color:#8c491a}
+  .leaflet-bar{border:none;box-shadow:0 6px 16px rgba(120,70,20,.2);border-radius:14px;overflow:hidden}
+  .leaflet-control-attribution{background:rgba(253,248,238,.82);color:rgba(50,40,28,.5);font-size:9px;border-radius:8px 0 0 0}
+  .leaflet-control-attribution a{color:#8c491a}
+  .pin{border-radius:999px;box-sizing:border-box;box-shadow:0 3px 8px rgba(120,70,20,.3)}
+  .pin.v{background:#ecb75e;border:2.5px solid #fdf8ee}
+  .pin.w{background:rgba(253,248,238,.9);border:2.5px dashed #8fa073}
+  .leaflet-popup-content-wrapper{background:#fdf8ee;border-radius:20px;box-shadow:0 10px 24px rgba(120,70,20,.24)}
+  .leaflet-popup-tip{background:#fdf8ee}
+  .leaflet-popup-content{margin:12px 16px;font:700 12px/1.5 Nunito,"Noto Sans SC",sans-serif;color:rgba(50,40,28,.6)}
+  .leaflet-popup-content b{display:block;font:400 18px/1.2 "ZCOOL KuaiLe","Noto Sans SC",sans-serif;color:#8c491a;margin-bottom:3px}
+  .leaflet-popup-close-button{color:rgba(50,40,28,.4)!important}
+  #legend{position:absolute;left:12px;bottom:12px;z-index:500;display:flex;gap:12px;align-items:center;padding:8px 13px;border-radius:999px;background:rgba(253,248,238,.92);box-shadow:0 5px 14px rgba(120,70,20,.16);font:700 10.5px/1 Nunito,"Noto Sans SC",sans-serif;color:rgba(50,40,28,.5)}
+  #legend i{display:inline-block;width:9px;height:9px;border-radius:999px;margin-right:5px;vertical-align:-1px}
+  #fit{position:absolute;right:12px;top:12px;z-index:500;border:none;padding:9px 15px;border-radius:999px;background:rgba(253,248,238,.94);box-shadow:0 5px 14px rgba(120,70,20,.16);font:800 11.5px/1 Nunito,"Noto Sans SC",sans-serif;color:#8c491a;cursor:pointer}
+  #fit:hover{background:#fdf8ee}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<button id="fit">看全部</button>
+<div id="legend"><span><i style="background:#ecb75e"></i>已打卡</span><span><i style="background:#fdf8ee;border:2px dashed #8fa073"></i>种草中</span></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const SEED = [
+  { cn: '马子禄兰州拉面', sub: '曼城 Manchester', lon: -2.2426, lat: 53.4808, visits: 3, wish: false },
+  { cn: '海底捞', sub: '伦敦唐人街', lon: -0.1312, lat: 51.5117, visits: 2, wish: false },
+  { cn: 'とり居酒屋', sub: '东京中目黑', lon: 139.6989, lat: 35.6444, visits: 1, wish: false },
+  { cn: '街角 Deli', sub: '家门口', lon: -2.2350, lat: 53.4700, visits: 2, wish: false },
+  { cn: '陈麻婆豆腐', sub: '成都青羊区', lon: 104.0665, lat: 30.5723, visits: 1, wish: false },
+  { cn: 'Trattoria da Enzo', sub: '罗马 Trastevere', lon: 12.4700, lat: 41.8890, visits: 1, wish: false },
+  { cn: '老凯里酸汤鱼', sub: '贵阳', lon: 106.6302, lat: 26.6470, visits: 0, wish: true },
+  { cn: 'Sushi Saito', sub: '东京港区', lon: 139.7370, lat: 35.6655, visits: 0, wish: true }
+];
+
+const map = L.map('map', { zoomControl: true, worldCopyJump: true, attributionControl: true })
+  .setView([35, 30], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd',
+  attribution: '&copy; OpenStreetMap &middot; CARTO'
+}).addTo(map);
+
+let layer = L.layerGroup().addTo(map);
+let bounds = null;
+
+function draw(pins) {
+  layer.clearLayers();
+  const pts = [];
+  pins.forEach(p => {
+    if (typeof p.lat !== 'number' || typeof p.lon !== 'number') return;
+    const size = p.wish ? 13 : Math.min(26, 14 + p.visits * 2.5);
+    const m = L.marker([p.lat, p.lon], {
+      icon: L.divIcon({
+        className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+        html: '<div class="pin ' + (p.wish ? 'w' : 'v') + '" style="width:' + size + 'px;height:' + size + 'px"></div>'
+      }),
+      title: p.cn
+    });
+    m.bindPopup('<b>' + p.cn + '</b>' + (p.sub || '') +
+      (p.wish ? ' · 还没去过' : ' · 去过 ' + p.visits + ' 次'));
+    m.addTo(layer);
+    pts.push([p.lat, p.lon]);
+  });
+  bounds = pts.length ? L.latLngBounds(pts) : null;
+  if (bounds) map.fitBounds(bounds, { padding: [42, 42], maxZoom: 6 });
+}
+
+draw(SEED);
+document.getElementById('fit').onclick = () => { if (bounds) map.fitBounds(bounds, { padding: [42, 42], maxZoom: 6 }); };
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (d && d.type === 'pins' && Array.isArray(d.pins)) draw(d.pins);
+});
+if (window.parent !== window) window.parent.postMessage({ type: 'map-ready' }, '*');
+</script>
+</body>
+</html>

@@ -1,0 +1,2573 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Nunito:wght@400;600;700;800;900&display=swap">
+<meta name="theme-color" content="#ecb75e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.json">
+<script src="./photo-slot.js"></script>
+<script src="./app-store.js"></script>
+<script src="./cloud-config.js"></script>
+<script src="./supabase-sync.js"></script>
+<style>
+body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+/* 手机上（或加到主屏后）脱掉预览用的手机外壳，直接铺满屏幕 */
+@media (max-width:720px){
+  body{background:#fdf8ee}
+  .cx-shell{padding:0!important;gap:0!important}
+  .cx-label{display:none!important}
+  [data-om-starter="ios-frame"]{width:100vw!important;height:100dvh!important;border-radius:0!important;
+    box-shadow:none!important;background:#fdf8ee!important}
+  [data-om-starter="ios-frame"]>div:not(:has(>div[style*="min-height"])){}
+  [data-om-starter="ios-frame"]>div[style*="126px"],
+  [data-om-starter="ios-frame"]>div[style*="width: 126px"],
+  [data-om-starter="ios-frame"]>div[style*="z-index: 50"],
+  [data-om-starter="ios-frame"]>div[style*="z-index: 10"],
+  [data-om-starter="ios-frame"]>div[style*="z-index: 60"]{display:none!important}
+}
+@media (display-mode:standalone){
+  .cx-shell{padding:0!important;gap:0!important}
+  .cx-label{display:none!important}
+}
+a{color:#8c491a}a:hover{color:#b2622d}
+@keyframes ap-fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ap-up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes ap-dot{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes ap-drop{from{opacity:0;transform:translateY(-10px) scaleY(.92);transform-origin:top}to{opacity:1;transform:none}}
+@keyframes ap-pop{0%{opacity:0;transform:translateX(-50%) scale(.7)}60%{transform:translateX(-50%) scale(1.06)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
+</style></helmet>
+<div class="cx-shell" style="padding:44px;display:flex;flex-wrap:wrap;gap:38px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div class="cx-label" style="display:flex;align-items:baseline;gap:9px"><span style="font:800 10.5px/1 ui-monospace,Menlo,monospace;padding:3px 7px;background:#201e1d;color:#f5ead8;border-radius:4px">APP</span><span style="font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:#201e1d">臭翔今天吃什么 · 可点原型</span><span style="font:700 11.5px/1.35 Nunito,sans-serif;color:rgba(32,30,29,.5)">首页无导航，小横条出 tab</span></div>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ phoneW }}" height="{{ phoneH }}" hint-size="402px,874px">
+<div style="height:100%;min-height:100%;position:relative;background:#fdf8ee;display:flex;flex-direction:column;font-family:Nunito,'Noto Sans SC',sans-serif;overflow:hidden">
+
+<div aria-live="polite" style="position:absolute;top:52px;left:0;right:0;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 18px;pointer-events:none">
+  <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+    <div style="display:flex;align-items:center;gap:11px;max-width:100%;padding:10px 16px 10px 11px;border-radius:999px;background:#fdf8ee;box-shadow:0 12px 28px rgba(120,70,20,.26);animation:ap-pop .32s cubic-bezier(.34,1.56,.64,1) both">
+      <span style="width:34px;height:34px;flex:none"><dc-import name="Chouxiang" state="{{ t.mood }}" hint-size="34px,34px"></dc-import></span>
+      <span style="font:400 16px/1.2 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ t.text }}</span>
+    </div>
+  </sc-for>
+</div>
+
+<sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:96px 30px 34px;gap:20px;background:#fdf8ee;animation:ap-fade .3s ease both">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <span style="width:150px;height:150px"><dc-import name="Chouxiang" state="excited" hint-size="150px,150px"></dc-import></span>
+    <h2 style="margin:0;font:400 32px/1.1 'ZCOOL KuaiLe',sans-serif;color:#3a2617;text-align:center">臭翔今天吃什么</h2>
+    <span style="font:700 12px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5);text-align:center">只有你们俩能进来。登录一次就一直记着。</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">你是谁</span>
+    <div style="display:flex;gap:10px">
+      <sc-for list="{{ whoOptions }}" as="w" hint-placeholder-count="2">
+        <button onClick="{{ w.onPick }}" style="flex:1;min-height:58px;border:none;border-radius:22px;background:{{ w.bg }};color:{{ w.fg }};font:400 22px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer">{{ w.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <input type="email" value="{{ loginEmail }}" onChange="{{ setLoginEmail }}" placeholder="邮箱" autoComplete="email" style="min-height:54px;padding:0 20px;border:1px solid rgba(50,40,28,.14);border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+    <input type="password" value="{{ loginPw }}" onChange="{{ setLoginPw }}" placeholder="密码" autoComplete="current-password" style="min-height:54px;padding:0 20px;border:1px solid rgba(50,40,28,.14);border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+    <sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}">
+      <span style="font:700 12px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#b2452d">{{ loginErr }}</span>
+    </sc-if>
+    <button onClick="{{ doLogin }}" style="min-height:62px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 22px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 12px 30px rgba(140,73,26,.28)" style-hover="background:#b2622d" style-active="transform:translateY(2px)">{{ loginLabel }}</button>
+  </div>
+  <span style="margin-top:auto;font:700 11px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.4);text-align:center">注册是关着的。账号由菜菜在 Supabase 后台开。</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ atHome }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="position:relative;height:492px;background:#ecb75e;border-radius:0 0 52px 52px;overflow:hidden;flex:none">
+    <div style="position:absolute;top:64px;left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(70,44,16,.62)"><span>{{ greeting }}</span><span>{{ todayLabel }}</span></div>
+    <button onClick="{{ tapMascot }}" aria-label="敲两下臭翔，他会跟你说话" style="position:absolute;top:104px;left:50%;transform:translateX(-50%);width:372px;height:372px;border:none;background:transparent;padding:0;cursor:pointer"><dc-import name="Chouxiang" state="{{ homeMascot }}" hint-size="372px,372px"></dc-import></button>
+    <sc-if value="{{ saying }}" hint-placeholder-val="{{ false }}">
+      <div role="status" style="position:absolute;bottom:14px;left:50%;z-index:3;max-width:312px;padding:12px 20px 13px;border-radius:26px 26px 26px 9px;background:#fdf8ee;box-shadow:0 10px 22px rgba(120,70,20,.24);font:400 19px/1.28 'ZCOOL KuaiLe',sans-serif;color:#8c491a;text-align:center;animation:ap-pop .34s cubic-bezier(.34,1.56,.64,1) both">{{ saying }}</div>
+    </sc-if>
+  </div>
+  <div style="flex:1;min-height:0;padding:30px 28px 26px;display:flex;flex-direction:column;gap:24px">
+    <div>
+      <h1 style="margin:0;font:400 44px/1.12 'ZCOOL KuaiLe',sans-serif;color:#8c491a">今天吃什么</h1>
+      <p style="margin:12px 0 0;font:700 14.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.6);max-width:286px">我帮你想想～三个问题以内，一定给你答案。</p>
+    </div>
+    <button onClick="{{ startDecide }}" style="width:100%;margin-top:auto;min-height:70px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 24px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 12px 30px rgba(140,73,26,.3)" style-hover="background:#b2622d" style-active="transform:translateY(2px)">帮我决定</button>
+    <button onClick="{{ openTabs }}" aria-label="上滑查看菜库、餐厅和记录" style="align-self:center;border:none;background:transparent;padding:6px 40px;cursor:pointer"><span style="display:block;width:104px;height:5px;border-radius:999px;background:rgba(50,40,28,.22)"></span></button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atQuestion }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="background:#ecb75e;padding:76px 28px 28px;border-radius:0 0 52px 52px;display:flex;align-items:center;gap:14px;flex:none">
+    <button onClick="{{ goBack }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:rgba(253,248,238,.78);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#fdf8ee">←</button>
+    <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+      <span style="font:800 11px/1 Nunito,sans-serif;letter-spacing:.18em;color:rgba(70,44,16,.62)">{{ progress }}</span>
+      <div style="height:6px;border-radius:999px;background:rgba(70,44,16,.18);overflow:hidden"><div style="height:100%;border-radius:999px;background:#8c491a;width:{{ pct }}"></div></div>
+    </div>
+    <div style="width:96px;height:96px;flex:none;margin:-8px -10px -20px 0"><dc-import name="Chouxiang" state="thinking" hint-size="96px,96px"></dc-import></div>
+  </div>
+  <div style="flex:1;min-height:0;padding:34px 28px 30px;display:flex;flex-direction:column;gap:22px">
+    <h2 style="margin:0;font:400 34px/1.25 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ qTitle }}</h2>
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <sc-for list="{{ qOpts }}" as="opt" hint-placeholder-count="3">
+        <button onClick="{{ opt.onSelect }}" style="width:100%;min-height:84px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;text-align:left;padding:0 28px;border:none;border-radius:28px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572" style-active="transform:translateY(2px)">
+          <span style="font:400 23px/1.2 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ opt.cn }}</span>
+          <span style="font:800 11.5px/1 Nunito,sans-serif;letter-spacing:.1em;color:rgba(50,40,28,.48)">{{ opt.en }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atThinking }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;background:#ecb75e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;animation:ap-fade .3s ease both">
+  <div style="width:250px;height:250px"><dc-import name="Chouxiang" state="dizzy" hint-size="250px,250px"></dc-import></div>
+  <p style="margin:0;font:400 26px/1.2 'ZCOOL KuaiLe',sans-serif;color:#8c491a">让臭翔好好想想…</p>
+  <div style="display:flex;gap:7px">
+    <span style="width:8px;height:8px;border-radius:999px;background:#8c491a;animation:ap-dot 1s infinite"></span>
+    <span style="width:8px;height:8px;border-radius:999px;background:#8c491a;animation:ap-dot 1s .2s infinite"></span>
+    <span style="width:8px;height:8px;border-radius:999px;background:#8c491a;animation:ap-dot 1s .4s infinite"></span>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atResult }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="position:relative;height:296px;background:#e9dcc2;border-radius:0 0 52px 52px;flex:none;overflow:hidden">
+    <photo-slot id="{{ pickSlot }}" shape="rect" placeholder="拖一张这道菜的照片进来" style="width:100%;height:100%"></photo-slot>
+    <button onClick="{{ goHome }}" aria-label="返回首页" style="position:absolute;top:62px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+    <div style="position:absolute;right:10px;bottom:-30px;width:118px;height:118px;pointer-events:none;z-index:2"><dc-import name="Chouxiang" state="success" hint-size="118px,118px"></dc-import></div>
+  </div>
+  <div style="flex:1;padding:30px 28px 28px;display:flex;flex-direction:column;gap:16px">
+    <div>
+      <h2 style="margin:0;font:400 38px/1.12 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ pick.cn }}</h2>
+      <p style="margin:8px 0 0;font:800 12.5px/1.3 Nunito,sans-serif;letter-spacing:.05em;color:rgba(50,40,28,.48)">{{ pick.en }} · {{ pickMeta }}</p>
+      <sc-if value="{{ pickWanted }}" hint-placeholder-val="{{ false }}">
+        <span style="display:inline-block;margin-top:10px;padding:7px 13px;border-radius:999px;background:#f2c572;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#7a4413">你们「想吃」清单里的，所以先给它</span>
+      </sc-if>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <sc-for list="{{ pick.tags }}" as="tag" hint-placeholder-count="4">
+        <span style="padding:8px 15px;border-radius:999px;background:#f6ecd8;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#6b6050">{{ tag }}</span>
+      </sc-for>
+    </div>
+    <sc-if value="{{ hasCompromise }}" hint-placeholder-val="{{ false }}">
+      <span style="display:block;padding:13px 16px;border-radius:20px;background:#f6ecd8;font:700 12.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">{{ compromise }}</span>
+    </sc-if>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">臭翔为什么选它</span>
+      <sc-for list="{{ pick.why }}" as="w" hint-placeholder-count="4">
+        <span style="display:flex;gap:10px;font:700 13.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#4b4438"><span style="color:#c67139;font-weight:900">—</span>{{ w }}</span>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+      <button onClick="{{ eatThis }}" style="min-height:66px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 22px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 12px 30px rgba(140,73,26,.28)" style-hover="background:#b2622d" style-active="transform:translateY(2px)">{{ eatThisLabel }}</button>
+      <div style="display:flex;gap:10px">
+        <button onClick="{{ swapPick }}" disabled="{{ onlyOne }}" style="flex:1;min-height:54px;border:none;border-radius:999px;background:#f6ecd8;font:800 14px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;cursor:pointer;opacity:{{ swapOpacity }}" style-hover="background:#f2c572">{{ swapLabel }}</button>
+        <button onClick="{{ goHome }}" style="flex:1;min-height:54px;border:none;border-radius:999px;background:transparent;font:800 14px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5);cursor:pointer" style-hover="background:#f6ecd8">今天不要</button>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atLibrary }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+  <div style="padding:0 24px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">菜谱</h2>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ libCountLabel }}</span>
+        <button onClick="{{ newDish }}" style="min-height:38px;padding:0 15px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#b2622d">＋ 加菜</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;min-height:52px;padding:0 8px 0 20px;border-radius:999px;background:#f6ecd8">
+      <span style="font:700 15px/1 Nunito;color:rgba(50,40,28,.4)">⌕</span>
+      <input value="{{ q }}" onChange="{{ setQ }}" placeholder="搜菜名、食材、菜系、餐厅、外卖店" style="flex:1;min-width:0;border:none;background:transparent;font:700 14px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+      <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ clearQ }}" aria-label="清空搜索" style="width:36px;height:36px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 13px/1 Nunito;color:#8c491a;cursor:pointer">✕</button>
+      </sc-if>
+    </div>
+    <sc-if value="{{ searchHint }}" hint-placeholder-val="{{ false }}">
+      <span style="font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">{{ searchHint }}</span>
+    </sc-if>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <sc-for list="{{ libFilters }}" as="f" hint-placeholder-count="4">
+        <button onClick="{{ f.onPick }}" style="min-height:38px;padding:0 16px;border:none;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ f.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px 8px;display:flex;flex-direction:column;gap:12px">
+    <sc-for list="{{ libList }}" as="d" hint-placeholder-count="6">
+      <button onClick="{{ d.onOpen }}" style="display:flex;align-items:center;gap:14px;text-align:left;padding:12px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
+        <span style="width:66px;height:66px;flex:none;border-radius:20px;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)"></span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+          <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <span style="font:400 21px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ d.cn }}</span>
+            <span style="padding:4px 9px;border-radius:999px;background:{{ d.kindBg }};font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:{{ d.kindFg }}">{{ d.kind }}</span>
+          </span>
+          <span style="font:700 11.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ d.meta }}</span>
+        </span>
+        <span style="font:800 11px/1.3 Nunito,'Noto Sans SC',sans-serif;color:{{ d.gapColor }};text-align:right;flex:none;white-space:pre-line">{{ d.gapLabel }}</span>
+      </button>
+    </sc-for>
+    <sc-if value="{{ libEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:34px 0 10px">
+        <span style="width:96px;height:96px"><dc-import name="Chouxiang" state="confused" hint-size="96px,96px"></dc-import></span>
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:rgba(50,40,28,.42)">没找到，换个词试试</span>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atDetail }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:24px;animation:ap-fade .3s ease both">
+  <div style="position:relative;height:250px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
+    <photo-slot id="{{ dishSlot }}" shape="rect" placeholder="拖照片进来" style="width:100%;height:100%"></photo-slot>
+    <button onClick="{{ editDish }}" style="position:absolute;top:66px;right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
+    <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="position:absolute;top:66px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+  </div>
+  <div style="padding:24px 28px 0;display:flex;flex-direction:column;gap:18px">
+    <div>
+      <h2 style="margin:0;font:400 36px/1.12 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ detail.cn }}</h2>
+      <p style="margin:8px 0 0;font:800 12.5px/1.3 Nunito,sans-serif;letter-spacing:.05em;color:rgba(50,40,28,.48)">{{ detail.en }} · {{ detailMeta }}</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+      <sc-for list="{{ detailStats }}" as="s" hint-placeholder-count="4">
+        <span style="display:flex;flex-direction:column;gap:5px;padding:14px 16px;border-radius:22px;background:#f6ecd8">
+          <span style="font:400 22px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ s.v }}</span>
+          <span style="font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">{{ s.k }}</span>
+        </span>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <sc-for list="{{ detail.tags }}" as="tag" hint-placeholder-count="4">
+        <span style="padding:8px 15px;border-radius:999px;background:#eff3e4;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">{{ tag }}</span>
+      </sc-for>
+    </div>
+    <sc-if value="{{ isCook }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">食材</span>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ detailIng }}" as="ing" hint-placeholder-count="5">
+            <span style="padding:7px 13px;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#4b4438">{{ ing }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">菜谱 / 视频</span>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;background:#f6ecd8">
+          <span style="width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:14px;background:#fdf8ee;font:700 14px/1 Nunito;color:#c67139">▶</span>
+          <span style="flex:1;display:flex;flex-direction:column;gap:3px">
+            <span style="font:800 13px/1.3 Nunito,'Noto Sans SC',sans-serif;color:#3a2617">{{ detailRecipe }}</span>
+            <span style="font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">点开跳转到收藏的链接</span>
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">菜谱截图 / 成品照</span>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
+          <sc-for list="{{ dishShots }}" as="p" hint-placeholder-count="3">
+            <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+          </sc-for>
+        </div>
+        <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">点一下换掉、右上角 ✕ 删掉；最后一格是空的，想加多少张都行</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">吃过的时间</span>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ detailDates }}" as="dt" hint-placeholder-count="3">
+            <span style="padding:8px 14px;border-radius:999px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#4b4438">{{ dt }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">备注</span>
+      <sc-for list="{{ detail.notes }}" as="n" hint-placeholder-count="2">
+        <span style="display:flex;gap:10px;font:700 13.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#4b4438"><span style="color:#c67139;font-weight:900">—</span>{{ n }}</span>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:10px;padding-top:4px">
+      <button onClick="{{ addWant }}" style="flex:1;min-height:60px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#b2622d" style-active="transform:translateY(2px)">{{ wantLabel }}</button>
+      <button onClick="{{ logDish }}" style="flex:1;min-height:60px;border:none;border-radius:999px;background:#f6ecd8;color:#3a2617;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#f2c572">记一笔</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atRest }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+  <div style="padding:0 24px;display:flex;flex-direction:column;gap:15px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">餐厅</h2>
+      <div style="display:flex;gap:8px">
+        <button onClick="{{ newRest }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#b2622d">＋ 加店</button>
+        <button onClick="{{ goMap }}" style="min-height:38px;padding:0 15px;border:none;border-radius:999px;background:#eff3e4;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f;cursor:pointer" style-hover="background:#dfe7cd">地图</button>
+        <button onClick="{{ goSettings }}" aria-label="设置" style="width:38px;height:38px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito;color:rgba(50,40,28,.55);cursor:pointer" style-hover="background:#f2c572">⚙</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <span style="flex:1;display:flex;flex-direction:column;gap:4px;padding:13px 15px;border-radius:20px;background:#f6ecd8">
+        <span style="font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restSpend }}</span>
+        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">全部餐厅总花费</span>
+      </span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:4px;padding:13px 15px;border-radius:20px;background:#f6ecd8">
+        <span style="font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restVisits }} 次</span>
+        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">累计打卡</span>
+      </span>
+    </div>
+    <button onClick="{{ askLocate }}" style="display:flex;align-items:center;gap:8px;text-align:left;border:none;border-radius:999px;background:transparent;padding:2px;cursor:pointer">
+      <span style="width:8px;height:8px;flex:none;border-radius:999px;background:{{ locDot }}"></span>
+      <span style="font:700 11px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ locLabel }}</span>
+    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <sc-for list="{{ restFilters }}" as="f" hint-placeholder-count="5">
+        <button onClick="{{ f.onPick }}" style="min-height:36px;padding:0 15px;border:none;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ f.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 8px 0 18px;border-radius:999px;background:#f6ecd8">
+      <span style="font:700 15px/1 Nunito;color:rgba(50,40,28,.4)">⌕</span>
+      <input value="{{ q }}" onChange="{{ setQ }}" placeholder="搜店名、菜系、城市" style="flex:1;min-width:0;border:none;background:transparent;font:700 13.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+      <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ clearQ }}" aria-label="清空搜索" style="width:34px;height:34px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 12px/1 Nunito;color:#8c491a;cursor:pointer">✕</button>
+      </sc-if>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+      <span style="font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.38)">菜系</span>
+      <sc-for list="{{ restCuisines }}" as="c" hint-placeholder-count="4">
+        <button onClick="{{ c.onPick }}" style="min-height:32px;padding:0 13px;border:{{ c.border }};border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ c.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 24px 8px;display:flex;flex-direction:column;gap:12px">
+    <sc-for list="{{ restList }}" as="r" hint-placeholder-count="6">
+      <button onClick="{{ r.onOpen }}" style="display:flex;flex-direction:column;gap:9px;text-align:left;padding:16px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
+        <span style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%">
+          <span style="font:400 21px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ r.cn }}</span>
+          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:{{ r.statusColor }};flex:none">{{ r.status }}</span>
+        </span>
+        <span style="font:700 11.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ r.line }}</span>
+        <span style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ r.chips }}" as="c" hint-placeholder-count="3">
+            <span style="padding:6px 12px;border-radius:999px;background:#fdf8ee;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#6b6050">{{ c }}</span>
+          </sc-for>
+        </span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atRestDetail }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:24px;animation:ap-fade .3s ease both">
+  <div style="position:relative;height:230px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
+    <photo-slot id="{{ restSlotA }}" shape="rect" placeholder="拖店里的照片进来" style="width:100%;height:100%"></photo-slot>
+    <button onClick="{{ editRest }}" style="position:absolute;top:66px;right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
+    <button onClick="{{ goRest }}" aria-label="返回餐厅列表" style="position:absolute;top:66px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+  </div>
+  <div style="padding:22px 28px 0;display:flex;flex-direction:column;gap:18px">
+    <div>
+      <h2 style="margin:0;font:400 34px/1.12 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ rest.cn }}</h2>
+      <p style="margin:8px 0 0;font:800 12.5px/1.35 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ restLine }}</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">
+      <sc-for list="{{ restChips }}" as="c" hint-placeholder-count="4">
+        <span style="padding:8px 14px;border-radius:999px;background:#eff3e4;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">{{ c }}</span>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">这家常点的</span>
+      <sc-for list="{{ restDishes }}" as="d" hint-placeholder-count="2">
+        <button onClick="{{ d.onOpen }}" style="display:flex;align-items:center;gap:13px;text-align:left;padding:12px 15px;border:none;border-radius:22px;background:#f6ecd8;cursor:pointer" style-hover="background:#eee0c4">
+          <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+            <span style="font:400 19px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ d.cn }}</span>
+            <span style="font:700 11.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ d.meta }}</span>
+          </span>
+          <span style="font:800 15px/1 Nunito,sans-serif;color:rgba(50,40,28,.3)">›</span>
+        </button>
+      </sc-for>
+      <sc-if value="{{ restNoDishes }}" hint-placeholder-val="{{ false }}">
+        <span style="font:700 12px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.4)">还没记过这家点了什么</span>
+      </sc-if>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+      <sc-for list="{{ restStats }}" as="s" hint-placeholder-count="4">
+        <span style="display:flex;flex-direction:column;gap:5px;padding:14px 16px;border-radius:22px;background:#f6ecd8">
+          <span style="font:400 22px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ s.v }}</span>
+          <span style="font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">{{ s.k }}</span>
+        </span>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">店里的照片</span>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
+        <sc-for list="{{ restShots }}" as="p" hint-placeholder-count="3">
+          <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+        </sc-for>
+      </div>
+      <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">门面、菜单、招牌菜这种，最多 6 张</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">打卡照片</span>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
+        <sc-for list="{{ restCheckinShots }}" as="p" hint-placeholder-count="3">
+          <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+        </sc-for>
+      </div>
+      <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">每次打卡传的照片都会攒在这里（最多 60 张）；点一下换掉、右上角 ✕ 删掉</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">打卡记录</span><span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ restVisitCount }}</span></span>
+      <sc-if value="{{ restNoVisit }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:24px;background:#f6ecd8">
+          <span style="width:52px;height:52px;flex:none"><dc-import name="Chouxiang" state="shy" hint-size="52px,52px"></dc-import></span>
+          <span style="font:700 12.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.6)">还在种草名单里，一次都没去过。<br>去了记得回来打卡～</span>
+        </div>
+      </sc-if>
+      <sc-for list="{{ restVisitList }}" as="v" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:24px;background:#f6ecd8">
+          <span style="width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:16px;background:#fdf8ee;font:400 14px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ v.mode }}</span>
+          <span style="flex:1;display:flex;flex-direction:column;gap:3px">
+            <span style="font:800 13px/1.3 Nunito,'Noto Sans SC',sans-serif;color:#3a2617">{{ v.d }} · {{ v.amt }}</span>
+            <span style="font:700 11.5px/1.4 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ v.note }}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
+      <button onClick="{{ openCheckin }}" style="min-height:62px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d" style-active="transform:translateY(2px)">打卡一次</button>
+      <div style="display:flex;gap:10px">
+        <button onClick="{{ toggleWish }}" style="flex:1;min-height:52px;border:none;border-radius:999px;background:#f6ecd8;font:800 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">{{ wishLabel }}</button>
+        <button onClick="{{ goMap }}" style="flex:1;min-height:52px;border:none;border-radius:999px;background:#eff3e4;font:800 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f;cursor:pointer" style-hover="background:#dfe7cd">在地图上看</button>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atCheckin }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:70px 28px 28px;gap:18px;animation:ap-fade .3s ease both">
+  <div style="display:flex;align-items:center;gap:14px">
+    <button onClick="{{ goRestDetail }}" aria-label="取消" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
+    <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">打卡 · {{ rest.cn }}</h2>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">日期</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onClick="{{ dayMinus }}" aria-label="前一天" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">−</button>
+      <span style="flex:1;text-align:center;padding:13px 0;border-radius:20px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ formDate }}</span>
+      <button onClick="{{ dayPlus }}" aria-label="后一天" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">+</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">堂食还是外卖</span>
+    <div style="display:flex;gap:10px">
+      <sc-for list="{{ formModes }}" as="m" hint-placeholder-count="2">
+        <button onClick="{{ m.onPick }}" disabled="{{ m.disabled }}" style="flex:1;min-height:58px;border:none;border-radius:22px;background:{{ m.bg }};color:{{ m.fg }};font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;opacity:{{ m.opacity }}">{{ m.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">花了多少（{{ curCode }}）</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onClick="{{ amtMinus }}" aria-label="减少" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">−</button>
+      <span style="flex:1;text-align:center;padding:13px 0;border-radius:20px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:400 24px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ formAmount }}</span>
+      <button onClick="{{ amtPlus }}" aria-label="增加" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">+</button>
+    </div>
+    <span style="font:700 11px/1.4 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">换算：{{ formAmountAlt }}</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">谁吃的</span>
+    <div style="display:flex;gap:10px">
+      <sc-for list="{{ eaters }}" as="e" hint-placeholder-count="2">
+        <button onClick="{{ e.onPick }}" style="flex:1;min-height:52px;border:none;border-radius:20px;background:{{ e.bg }};color:{{ e.fg }};font:400 20px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer">{{ e.label }}</button>
+      </sc-for>
+    </div>
+    <button onClick="{{ toggleTogether }}" aria-pressed="{{ togetherOn }}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:none;border-radius:20px;background:{{ togetherBg }};cursor:pointer;text-align:left">
+      <span style="flex:1;font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:{{ togetherFg }}">一起吃的</span>
+      <span style="width:46px;height:26px;flex:none;border-radius:999px;background:rgba(253,248,238,.7);display:flex;align-items:center;padding:3px">
+        <span style="width:20px;height:20px;border-radius:999px;background:{{ togetherFg }};transition:transform .2s ease;transform:{{ togetherKnob }}"></span>
+      </span>
+    </button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">照片</span>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      <sc-for list="{{ formShots }}" as="p" hint-placeholder-count="2">
+        <photo-slot id="{{ p.id }}" shape="rounded" radius="20" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:120px"></photo-slot>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">备注</span>
+    <span style="min-height:60px;padding:16px 18px;border-radius:22px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:700 13px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#4b4438">{{ formNote }}</span>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">
+      <sc-for list="{{ noteChips }}" as="n" hint-placeholder-count="4">
+        <button onClick="{{ n.onPick }}" style="padding:8px 13px;border:none;border-radius:999px;background:#f6ecd8;font:700 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#4b4438;cursor:pointer" style-hover="background:#f2c572">{{ n.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <button onClick="{{ saveCheckin }}" style="margin-top:auto;min-height:64px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 22px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 12px 30px rgba(140,73,26,.28)" style-hover="background:#b2622d" style-active="transform:translateY(2px)">保存这次打卡</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ atMap }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:14px;flex:none">
+    <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
+    <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">打卡地图</h2>
+  </div>
+  <div style="flex:1;min-height:0;padding:0 16px 20px">
+    <div style="width:100%;height:100%;border-radius:30px;overflow:hidden;background:#fdf8ee;border:1px solid rgba(50,40,28,.1)">
+      <iframe src="./world-map.html" title="打卡地图" data-pins="{{ mapPins }}" onLoad="{{ pushPins }}" style="width:100%;height:100%;border:0;display:block"></iframe>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atSettings }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:70px 28px 28px;gap:22px;animation:ap-fade .3s ease both">
+  <div style="display:flex;align-items:center;gap:14px">
+    <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
+    <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">设置</h2>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px">
+    <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">显示货币</span>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <sc-for list="{{ curOptions }}" as="c" hint-placeholder-count="5">
+        <button onClick="{{ c.onPick }}" style="min-height:44px;padding:0 17px;border:none;border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};font:800 13px/1 Nunito,sans-serif;cursor:pointer">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <span style="font:700 11.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">所有金额都按同一笔原始记录换算，随时切换不会改数据。当前汇率：{{ rateLine }}</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="width:9px;height:9px;flex:none;border-radius:999px;background:{{ cloudDot }}"></span>
+      <span style="flex:1;font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">云同步</span>
+      <button onClick="{{ toggleCloud }}" style="min-height:34px;padding:0 13px;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#eee0c4">{{ cloudToggleLabel }}</button>
+    </div>
+    <span style="font:700 12px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">{{ cloudMessage }}</span>
+    <div style="display:flex;align-items:center;gap:10px;padding:13px 15px;border-radius:24px;background:#f6ecd8">
+      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ accountLine }}</span>
+        <span style="font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ liveLabel }} · 和 {{ theirName }} 共用同一份数据</span>
+      </span>
+      <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ doLogout }}" style="min-height:38px;padding:0 15px;flex:none;border:1.5px solid rgba(50,40,28,.18);border-radius:999px;background:transparent;color:#8c491a;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#fdf8ee">退出登录</button>
+      </sc-if>
+    </div>
+    <sc-if value="{{ cloudSynced }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="padding:7px 13px;border-radius:999px;background:#eff3e4;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">上次同步 {{ cloudTime }}</span>
+        <button onClick="{{ syncNow }}" style="padding:7px 14px;border:none;border-radius:999px;background:#8fa073;color:#fdf8ee;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">立刻同步</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ cloudOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:9px;padding:14px;border-radius:24px;background:#f6ecd8">
+        <span style="font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.6)">在 Supabase 项目的 Settings → API 里抄这两项。它们只存在这台设备上。</span>
+        <input value="{{ cloudUrl }}" onChange="{{ setCloudUrl }}" placeholder="Project URL（https://xxxx.supabase.co）" style="min-height:44px;padding:0 16px;border:none;border-radius:999px;background:#fdf8ee;font:700 12px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+        <input value="{{ cloudKey }}" onChange="{{ setCloudKey }}" placeholder="anon public key" style="min-height:44px;padding:0 16px;border:none;border-radius:999px;background:#fdf8ee;font:700 12px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+        <div style="display:flex;gap:8px">
+          <button onClick="{{ connectCloud }}" style="flex:1;min-height:46px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 17px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#b2622d">连上</button>
+          <button onClick="{{ disconnectCloud }}" style="min-height:46px;padding:0 16px;border:1.5px solid rgba(50,40,28,.18);border-radius:999px;background:transparent;color:rgba(50,40,28,.55);font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">断开</button>
+        </div>
+        <span style="font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.6)">填过一次就记住了，下次打开不用再抄。给果果的设备最省事：复制下面的连接码，让她粘一次。</span>
+        <div style="display:flex;gap:8px">
+          <button onClick="{{ copyCode }}" style="flex:1;min-height:44px;border:none;border-radius:999px;background:#8fa073;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#7d8e63">{{ codeLabel }}</button>
+          <button onClick="{{ pasteCode }}" style="flex:1;min-height:44px;border:1.5px solid rgba(50,40,28,.18);border-radius:999px;background:transparent;color:#8c491a;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#fdf8ee">粘贴连接码</button>
+        </div>
+        <button onClick="{{ toggleSQL }}" style="align-self:flex-start;border:none;background:transparent;padding:3px 1px;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;text-decoration:underline">{{ sqlToggleLabel }}</button>
+        <sc-if value="{{ sqlOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.6)">复制到 Supabase 的 SQL Editor 跑一次，建好表和照片桶。</span>
+            <textarea readOnly="{{ true }}" value="{{ setupSQL }}" rows="9" style="padding:12px 14px;border:none;border-radius:18px;background:#fdf8ee;font:600 10.5px/1.6 ui-monospace,Menlo,monospace;color:#4b4438;outline:none;resize:none;white-space:pre"></textarea>
+            <button onClick="{{ copySQL }}" style="align-self:flex-start;min-height:38px;padding:0 15px;border:none;border-radius:999px;background:#eee0c4;color:#8c491a;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ copyLabel }}</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px">
+    <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">本地备份</span>
+    <p style="margin:0;font:700 12px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">云端之外的保险。<b style="color:#8c491a">时不时下一份收着</b>——Supabase 被暂停、误删、或者你想换个后端，都靠它。备份文件包含全部数据和照片。</p>
+    <div style="display:flex;gap:9px">
+      <button onClick="{{ doBackup }}" style="flex:1;min-height:52px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 18px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#b2622d">下载备份</button>
+      <button onClick="{{ pickRestore }}" style="flex:1;min-height:52px;border:1.5px solid rgba(50,40,28,.18);border-radius:999px;background:transparent;color:#8c491a;font:400 18px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#f6ecd8">读回备份</button>
+    </div>
+    <input type="file" accept="application/json,.json" ref="{{ restoreRef }}" onChange="{{ onRestoreFile }}" style="display:none">
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span style="padding:7px 13px;border-radius:999px;background:#f6ecd8;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">数据 {{ useData }}</span>
+      <span style="padding:7px 13px;border-radius:999px;background:#f6ecd8;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">照片 {{ usePhotos }}</span>
+      <span style="padding:7px 13px;border-radius:999px;background:#eff3e4;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">{{ savedLabel }}</span>
+    </div>
+    <sc-if value="{{ backupMsg }}" hint-placeholder-val="{{ false }}">
+      <span style="font:700 11.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">{{ backupMsg }}</span>
+    </sc-if>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px">
+    <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">人均标准</span>
+    <sc-for list="{{ bandRows }}" as="b" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:24px;background:#f6ecd8">
+        <span style="flex:1;display:flex;flex-direction:column;gap:3px">
+          <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ b.label }}</span>
+          <span style="font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ b.hint }}</span>
+        </span>
+        <button onClick="{{ b.onMinus }}" aria-label="降低" style="width:40px;height:40px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 15px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">−</button>
+        <span style="min-width:78px;text-align:center;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ b.value }}</span>
+        <button onClick="{{ b.onPlus }}" aria-label="提高" style="width:40px;height:40px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 15px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">+</button>
+      </div>
+    </sc-for>
+    <div style="display:flex;gap:8px">
+      <sc-for list="{{ bandLegend }}" as="l" hint-placeholder-count="3">
+        <span style="flex:1;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:20px;background:#eff3e4">
+          <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#56633f">{{ l.k }}</span>
+          <span style="font:800 10.5px/1.3 Nunito,sans-serif;color:rgba(50,40,28,.5)">{{ l.v }}</span>
+        </span>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atDiary }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+  <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">饮食记录</h2>
+      <span style="display:flex;align-items:center;gap:8px"><span style="width:34px;height:34px"><dc-import name="Chouxiang" state="checkin" hint-size="34px,34px"></dc-import></span><span style="font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#8fa073">连续 {{ streak }} 天</span></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px;padding:16px 18px;border-radius:28px;background:#f6ecd8">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="flex:1;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">我们一起</span>
+        <span style="padding:6px 12px;border-radius:999px;background:#f2c572;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#7a4413">{{ usTogether }} 顿一起吃的</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px">
+        <span style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:20px;background:#fdf8ee">
+          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.42)">一共花了</span>
+          <span style="font:400 21px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usSpend }}</span>
+        </span>
+        <span style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:20px;background:#fdf8ee">
+          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.42)">一人分</span>
+          <span style="font:400 21px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usEach }}</span>
+        </span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        <span style="padding:7px 13px;border-radius:999px;background:#eff3e4;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">最常去 {{ usFav }}</span>
+        <span style="padding:7px 13px;border-radius:999px;background:#fdf8ee;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ usMine }}</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onClick="{{ calTitleTap }}" aria-label="选择年份和月份" style="display:flex;align-items:center;gap:6px;border:none;background:transparent;padding:3px 2px;cursor:pointer;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a"><span>{{ calLabel }}</span><span style="font:800 10px/1 Nunito,sans-serif">▾</span></button>
+        <span style="flex:1"></span>
+        <button onClick="{{ calToday }}" style="min-height:32px;padding:0 14px;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#eee0c4">今天</button>
+        <button onClick="{{ calToggle }}" aria-label="{{ calToggleLabel }}" style="width:32px;height:32px;flex:none;display:grid;place-items:center;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 11px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#eee0c4"><span style="display:block;transition:transform .26s ease;transform:{{ calChevron }}">▾</span></button>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:5px">
+        <sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+          <button onClick="{{ d.onPick }}" aria-label="{{ d.aria }}" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:68px;padding:9px 0 8px;border:{{ d.border }};border-radius:20px;background:{{ d.bg }};cursor:pointer">
+            <span style="font:800 10.5px/1 Nunito,sans-serif;color:{{ d.fg2 }}">{{ d.w }}</span>
+            <span style="font:400 17px/1 'ZCOOL KuaiLe',sans-serif;color:{{ d.fg }}">{{ d.n }}</span>
+            <span style="display:flex;gap:3px;height:7px;align-items:center">
+              <sc-if value="{{ d.rec }}" hint-placeholder-val="{{ false }}"><span style="width:5px;height:5px;border-radius:999px;background:{{ d.recCol }}"></span></sc-if>
+              <sc-if value="{{ d.plan }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:999px;border:1.5px solid {{ d.planCol }}"></span></sc-if>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:4px 24px 8px;display:flex;flex-direction:column;gap:14px">
+      <sc-if value="{{ calMonth }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:8px;flex:none;animation:ap-drop .28s cubic-bezier(.2,.9,.3,1) both">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onClick="{{ calPrev }}" aria-label="上个月" style="width:34px;height:34px;flex:none;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 14px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#eee0c4">←</button>
+          <span style="flex:1;text-align:center;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(50,40,28,.5)">{{ calLabel }}</span>
+          <button onClick="{{ calNext }}" aria-label="下个月" style="width:34px;height:34px;flex:none;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 14px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#eee0c4">→</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+          <sc-for list="{{ wdNames }}" as="w" hint-placeholder-count="7">
+            <span style="text-align:center;font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.34)">{{ w }}</span>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+          <sc-for list="{{ monthCells }}" as="c" hint-placeholder-count="35">
+            <sc-if value="{{ c.blank }}" hint-placeholder-val="{{ false }}"><span style="height:46px"></span></sc-if>
+            <sc-if value="{{ c.real }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ c.onPick }}" aria-label="{{ c.aria }}" style="height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;border:{{ c.border }};border-radius:15px;background:{{ c.bg }};cursor:pointer">
+                <span style="font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:{{ c.fg }}">{{ c.n }}</span>
+                <span style="display:flex;gap:3px;height:6px;align-items:center">
+                  <sc-if value="{{ c.rec }}" hint-placeholder-val="{{ false }}"><span style="width:4.5px;height:4.5px;border-radius:999px;background:{{ c.recCol }}"></span></sc-if>
+                  <sc-if value="{{ c.plan }}" hint-placeholder-val="{{ false }}"><span style="width:5.5px;height:5.5px;border-radius:999px;border:1.5px solid {{ c.planCol }}"></span></sc-if>
+                </span>
+              </button>
+            </sc-if>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:13px;align-items:center">
+          <span style="display:flex;align-items:center;gap:5px;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)"><span style="width:5px;height:5px;border-radius:999px;background:#ecb75e"></span>已记录</span>
+          <span style="display:flex;align-items:center;gap:5px;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)"><span style="width:6px;height:6px;border-radius:999px;border:1.5px solid #8fa073"></span>已计划</span>
+          <span style="flex:1"></span>
+          <span aria-hidden="true" style="width:28px;height:28px;flex:none;opacity:.9"><dc-import name="Chouxiang" state="giggle" hint-size="28px,28px"></dc-import></span>
+        </div>
+      </div>
+      </sc-if>
+      <sc-if value="{{ calPickOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:9px;flex:none;padding:13px;border-radius:22px;background:#f6ecd8;animation:ap-drop .24s ease both">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onClick="{{ yearPrev }}" aria-label="上一年" style="width:30px;height:30px;flex:none;border:none;border-radius:999px;background:#fdf8ee;color:#8c491a;font:800 13px/1 Nunito,sans-serif;cursor:pointer">←</button>
+          <span style="flex:1;text-align:center;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ pickYear }} 年</span>
+          <button onClick="{{ yearNext }}" aria-label="下一年" style="width:30px;height:30px;flex:none;border:none;border-radius:999px;background:#fdf8ee;color:#8c491a;font:800 13px/1 Nunito,sans-serif;cursor:pointer">→</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <sc-for list="{{ pickMonths }}" as="m" hint-placeholder-count="12">
+            <button onClick="{{ m.onPick }}" style="min-height:38px;border:none;border-radius:13px;background:{{ m.bg }};color:{{ m.fg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ m.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+    <span style="font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">{{ selLabel }}</span>
+    <sc-for list="{{ selItems }}" as="it" hint-placeholder-count="2">
+      <div style="display:flex;align-items:center;gap:14px;padding:13px 15px;border:{{ it.border }};border-radius:26px;background:{{ it.bg }}">
+        <span style="width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:999px;background:#fdf8ee;font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:{{ it.slotColor }}">{{ it.slot }}</span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+          <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <span style="font:400 20px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ it.cn }}</span>
+            <span style="padding:4px 9px;border-radius:999px;background:{{ it.tagBg }};font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:{{ it.tagFg }}">{{ it.tag }}</span>
+          </span>
+          <span style="font:700 11.5px/1.35 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ it.note }}</span>
+        </span>
+        <span style="width:60px;height:60px;flex:none"><dc-import name="Chouxiang" state="{{ it.mood }}" hint-size="60px,60px"></dc-import></span>
+      </div>
+    </sc-for>
+    <sc-if value="{{ selEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:38px 0 10px">
+        <span style="width:96px;height:96px"><dc-import name="Chouxiang" state="confused" hint-size="96px,96px"></dc-import></span>
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:rgba(50,40,28,.42)">{{ selEmptyText }}</span>
+      </div>
+    </sc-if>
+  </div>
+  <div style="padding:8px 24px 0">
+    <button onClick="{{ goLibrary }}" style="width:100%;min-height:60px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d">{{ logLabel }}</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atWant }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+  <div style="padding:0 24px 8px;display:flex;align-items:flex-end;justify-content:space-between">
+    <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">想吃清单</h2>
+    <span style="font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ wantCount }} 个</span>
+  </div>
+  <sc-if value="{{ wantEmpty }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 40px">
+    <div style="width:190px;height:190px"><dc-import name="Chouxiang" state="confused" hint-size="190px,190px"></dc-import></div>
+    <p style="margin:0;font:400 24px/1.3 'ZCOOL KuaiLe',sans-serif;color:#3a2617;text-align:center">清单空空的</p>
+    <p style="margin:0;font:700 13px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5);text-align:center">在菜库里点「想吃」，我就记住了。</p>
+  </div>
+  </sc-if>
+  <div style="flex:1;min-height:0;overflow:auto;padding:14px 24px 8px;display:flex;flex-direction:column;gap:12px">
+    <sc-for list="{{ wantList }}" as="w" hint-placeholder-count="3">
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:26px;background:#f6ecd8">
+        <span style="width:52px;height:52px;flex:none"><dc-import name="Chouxiang" state="excited" hint-size="52px,52px"></dc-import></span>
+        <span style="flex:1;display:flex;flex-direction:column;gap:4px">
+          <span style="font:400 21px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ w.cn }}</span>
+          <span style="font:700 11.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ w.note }}</span>
+        </span>
+        <button onClick="{{ w.onRemove }}" aria-label="从想吃清单移除" style="width:38px;height:38px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 15px/1 Nunito;color:rgba(50,40,28,.45);cursor:pointer" style-hover="background:#f2c572;color:#3a2617">×</button>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 14px 30px;background:rgba(253,248,238,.94);border-top:1px solid rgba(50,40,28,.08);border-radius:32px 32px 0 0;display:flex;gap:2px;animation:ap-up .28s cubic-bezier(.2,.9,.25,1) both">
+  <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+    <button onClick="{{ t.onPick }}" style="flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:none;border-radius:20px;background:{{ t.bg }};cursor:pointer" style-hover="background:#f6ecd8">
+      <span style="font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:{{ t.fg }}">{{ t.cn }}</span>
+      <span style="width:5px;height:5px;border-radius:999px;background:{{ t.dot }}"></span>
+    </button>
+  </sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ atRestForm }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
+    <button onClick="{{ goRest }}" aria-label="返回餐厅" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito,sans-serif;color:#8c491a;cursor:pointer" style-hover="background:#eee0c4">←</button>
+    <h2 style="margin:0;flex:1;font:400 28px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ rfTitle }}</h2>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px 8px;display:flex;flex-direction:column;gap:16px">
+    <div style="height:150px;border-radius:26px;overflow:hidden;background:#f6ecd8;flex:none">
+      <photo-slot id="{{ rfSlot }}" shape="rect" placeholder="拖一张店里的照片进来" style="width:100%;height:100%"></photo-slot>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">餐厅名字</span>
+      <input value="{{ rf.cn }}" onChange="{{ rfSetName }}" placeholder="比如 马子禄兰州拉面" style="min-height:50px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617;outline:none">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">英文名 / 别名（可留空）</span>
+      <input value="{{ rf.en }}" onChange="{{ rfSetEn }}" placeholder="Mazilu Lanzhou" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+    </label>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">菜系 · 现在是「{{ rfCuisineNow }}」</span>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <sc-for list="{{ rfGroups }}" as="g" hint-placeholder-count="8">
+          <button onClick="{{ g.onPick }}" style="min-height:34px;padding:0 13px;border:none;border-radius:999px;background:{{ g.bg }};color:{{ g.fg }};font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ g.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <sc-for list="{{ rfCuisines }}" as="c" hint-placeholder-count="8">
+          <button onClick="{{ c.onPick }}" style="min-height:36px;padding:0 14px;border:none;border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ c.label }}</button>
+        </sc-for>
+      </div>
+      <input value="{{ rfCuisineNow }}" onChange="{{ rfSetCuisine }}" placeholder="没有合适的？自己写一个，比如 中餐 · 客家菜" style="width:100%;box-sizing:border-box;min-height:44px;padding:0 16px;border:1px dashed rgba(50,40,28,.2);border-radius:999px;background:transparent;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">在哪儿</span>
+      <x-import component-from-global-scope="map-picker" from="./map-picker.js" lat="{{ rfLat }}" lon="{{ rfLon }}" hint-size="100%,300px"></x-import>
+      <input value="{{ rf.city }}" onChange="{{ rfSetCity }}" placeholder="给它起个地点名，比如「曼城 Manchester」" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+    </div>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">人均（{{ curName }}）</span>
+      <input value="{{ rf.avg }}" onChange="{{ rfSetAvg }}" inputMode="decimal" placeholder="13.5" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+    </label>
+    <div style="display:flex;gap:8px">
+      <button onClick="{{ rfToggleDelivery }}" style="flex:1;min-height:46px;border:none;border-radius:999px;background:{{ rfDeliveryBg }};color:{{ rfDeliveryFg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">可外卖</button>
+      <button onClick="{{ rfToggleOnly }}" style="flex:1;min-height:46px;border:none;border-radius:999px;background:{{ rfOnlyBg }};color:{{ rfOnlyFg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">只做外卖</button>
+    </div>
+    <sc-if value="{{ rfCanDelete }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:9px;padding-top:2px">
+        <sc-if value="{{ confirmDel }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:8px;align-items:center;padding:13px 15px;border-radius:22px;background:#f9e2d4">
+            <span style="width:44px;height:44px;flex:none"><dc-import name="Chouxiang" state="cry" hint-size="44px,44px"></dc-import></span>
+            <span style="flex:1;font:700 12px/1.4 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">删掉这家店，打卡记录也一起没了</span>
+            <button onClick="{{ cancelDelete }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#fdf8ee;color:rgba(50,40,28,.6);font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">算了</button>
+            <button onClick="{{ doDeleteRest }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#b2452d;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">删掉</button>
+          </div>
+        </sc-if>
+        <button onClick="{{ askDelete }}" style="align-self:flex-start;border:none;background:transparent;padding:4px 2px;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(178,69,45,.75);cursor:pointer;text-decoration:underline">删掉这家店</button>
+      </div>
+    </sc-if>
+  </div>
+  <div style="padding:8px 24px 26px;flex:none">
+    <button onClick="{{ saveRest }}" style="width:100%;min-height:60px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d">存好</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atDishForm }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
+    <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito,sans-serif;color:#8c491a;cursor:pointer" style-hover="background:#eee0c4">←</button>
+    <h2 style="margin:0;flex:1;font:400 28px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ dfTitle }}</h2>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px 8px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;gap:10px;flex:none">
+      <div style="flex:1;height:132px;border-radius:24px;overflow:hidden;background:#f6ecd8">
+        <photo-slot id="{{ dfSlotDish }}" shape="rect" placeholder="成品照" style="width:100%;height:100%"></photo-slot>
+      </div>
+      <div style="flex:1;height:132px;border-radius:24px;overflow:hidden;background:#f6ecd8">
+        <photo-slot id="{{ dfSlotRecipe }}" shape="rect" placeholder="菜谱截图" style="width:100%;height:100%"></photo-slot>
+      </div>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">菜名</span>
+      <input value="{{ df.cn }}" onChange="{{ dfSetName }}" placeholder="比如 新疆大盘鸡" style="min-height:50px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617;outline:none">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">英文名（可留空）</span>
+      <input value="{{ df.en }}" onChange="{{ dfSetEn }}" placeholder="Dapanji" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+    </label>
+    <div style="display:flex;gap:10px">
+      <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+        <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">热量 kcal</span>
+        <input value="{{ df.kcal }}" onChange="{{ dfSetKcal }}" inputMode="numeric" placeholder="620" style="width:100%;box-sizing:border-box;min-height:46px;padding:0 16px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      </label>
+      <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+        <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">花费 {{ curName }}</span>
+        <input value="{{ df.cost }}" onChange="{{ dfSetCost }}" inputMode="decimal" placeholder="12" style="width:100%;box-sizing:border-box;min-height:46px;padding:0 16px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      </label>
+    </div>
+    <div style="display:flex;gap:10px">
+      <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+        <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">{{ dfMinsLabel }}</span>
+        <input value="{{ df.mins }}" onChange="{{ dfSetMins }}" inputMode="numeric" placeholder="30" style="width:100%;box-sizing:border-box;min-height:46px;padding:0 16px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      </label>
+      <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+        <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">吃过几次</span>
+        <input value="{{ df.times }}" onChange="{{ dfSetTimes }}" inputMode="numeric" placeholder="0" style="width:100%;box-sizing:border-box;min-height:46px;padding:0 16px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      </label>
+    </div>
+    <sc-if value="{{ dfIsCook }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <label style="display:flex;flex-direction:column;gap:7px">
+          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">食材（顿号隔开）</span>
+          <textarea value="{{ df.ing }}" onChange="{{ dfSetIng }}" rows="2" placeholder="鸡腿肉、土豆、青椒、皮带面、干辣椒" style="padding:14px 18px;border:none;border-radius:22px;background:#f6ecd8;font:700 13px/1.55 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none;resize:none"></textarea>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:7px">
+          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">菜谱 / 视频</span>
+          <input value="{{ df.recipe }}" onChange="{{ dfSetRecipe }}" placeholder="王刚 · 大盘鸡" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+          <input value="{{ df.link }}" onChange="{{ dfSetLink }}" inputMode="url" placeholder="粘一个链接进来" style="min-height:44px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,sans-serif;color:#8c491a;outline:none">
+        </label>
+      </div>
+    </sc-if>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">关键词（顿号隔开，搜索能搜到）</span>
+      <input value="{{ df.tags }}" onChange="{{ dfSetTags }}" placeholder="微辣、高蛋白、汤汤水水、宿醉救星" style="width:100%;box-sizing:border-box;min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">小心得（分号隔开）</span>
+      <textarea value="{{ df.note }}" onChange="{{ dfSetNote }}" rows="2" placeholder="皮带面要最后下；土豆切滚刀" style="padding:14px 18px;border:none;border-radius:22px;background:#f6ecd8;font:700 13px/1.55 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none;resize:none"></textarea>
+    </label>
+    <sc-if value="{{ dfCanDelete }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:9px;padding-top:2px">
+        <sc-if value="{{ confirmDel }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:8px;align-items:center;padding:13px 15px;border-radius:22px;background:#f9e2d4">
+            <span style="width:44px;height:44px;flex:none"><dc-import name="Chouxiang" state="cry" hint-size="44px,44px"></dc-import></span>
+            <span style="flex:1;font:700 12px/1.4 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">这道菜会从菜库和想吃清单里消失</span>
+            <button onClick="{{ cancelDelete }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#fdf8ee;color:rgba(50,40,28,.6);font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">算了</button>
+            <button onClick="{{ doDeleteDish }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#b2452d;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">删掉</button>
+          </div>
+        </sc-if>
+        <button onClick="{{ askDelete }}" style="align-self:flex-start;border:none;background:transparent;padding:4px 2px;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(178,69,45,.75);cursor:pointer;text-decoration:underline">删掉这道菜</button>
+      </div>
+    </sc-if>
+  </div>
+  <div style="padding:8px 24px 26px;flex:none">
+    <button onClick="{{ saveDish }}" style="width:100%;min-height:60px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d">存好</button>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+
+<div style="width:392px;display:flex;flex-direction:column;gap:14px;padding-top:38px">
+  <span style="font:400 22px/1 'ZCOOL KuaiLe',sans-serif;color:#201e1d">这一版做了什么</span>
+  <sc-for list="{{ notesList }}" as="n" hint-placeholder-count="7">
+    <div style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:22px;background:#fdf8ee;border:1px solid rgba(50,40,28,.1)">
+      <span style="font:400 19px/1.2 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ n.t }}</span>
+      <span style="font:700 12.5px/1.55 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.62)">{{ n.d }}</span>
+    </div>
+  </sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const Q1 = { cn: '今天想怎么吃？', key: 'how', opts: [
+  { cn: '自己做', en: 'COOK', v: 'cook' },
+  { cn: '点外卖', en: 'DELIVERY', v: 'order' },
+  { cn: '出去吃', en: 'EAT OUT', v: 'out' }] };
+
+const BRANCH = {
+  cook: [
+    { cn: '热量上想怎么样？', key: 'band', opts: [
+      { cn: '轻食', en: 'LIGHT', v: 'light' },
+      { cn: '正常', en: 'NORMAL', v: 'normal' },
+      { cn: '大餐', en: 'FEAST', v: 'feast' }] },
+    { cn: '今天有多少力气？', key: 'minutes', opts: [
+      { cn: '完全不想动', en: '15 分钟以内', v: 15 },
+      { cn: '还能动一动', en: '30 分钟以内', v: 30 },
+      { cn: '想好好做一顿', en: '30 分钟以上', v: 999 }] }
+  ],
+  order: [
+    { cn: '想吃哪一类？', key: 'cuisine', opts: [
+      { cn: '中餐', en: 'CHINESE', v: 'cn' },
+      { cn: '西餐', en: 'WESTERN', v: 'west' },
+      { cn: '其他', en: 'OTHER', v: 'other' }] },
+    { cn: '想多快吃到？', key: 'eta', opts: [
+      { cn: '半小时', en: '30 MIN', v: 30 },
+      { cn: '一小时', en: '1 HOUR', v: 60 },
+      { cn: '今天可以无限等', en: 'NO RUSH', v: 999 }] }
+  ],
+  out: [
+    { cn: '想跑多远？', key: 'travel', opts: [
+      { cn: '懒得动', en: '10 分钟内', v: 10 },
+      { cn: '45 分钟以内', en: '45 MIN', v: 45 },
+      { cn: '爬喜马拉雅都行', en: 'ANYWHERE', v: 999 }] },
+    { cn: '预算呢？', key: 'budget', opts: [
+      { cn: '没钱了', en: 'CHEAP', v: 14 },
+      { cn: '犒劳一下自己', en: 'TREAT', v: 30 },
+      { cn: '超级大餐', en: 'BLOWOUT', v: 999 }] }
+  ]
+};
+
+function flowFor(a) { return [Q1].concat(BRANCH[a.how] || []); }
+
+// every amount is stored once, in GBP; display converts
+const CUR = [
+  { code: 'GBP', sym: '£', rate: 1, dp: 2 },
+  { code: 'CNY', sym: '¥', rate: 9.12, dp: 0 },
+  { code: 'USD', sym: '$', rate: 1.27, dp: 2 },
+  { code: 'EUR', sym: '€', rate: 1.17, dp: 2 },
+  { code: 'JPY', sym: '¥', rate: 189, dp: 0 }
+];
+
+const DISHES = [
+  { id: 'dpj', cn: '大盘鸡', en: 'Big Plate Chicken', how: 'cook', cost: 12, days: 26, times: 9, score: 4.8,
+    minutes: 60, band: 'feast', kcal: 780,
+    tags: ['新疆', '鸡肉', '很饱', '两顿的量'],
+    ing: ['鸡腿肉', '土豆', '青椒', '皮带面', '干辣椒'], recipe: '王刚 · 大盘鸡（收藏的视频）',
+    dates: ['8月30日', '8月5日', '7月19日'],
+    why: ['你 26 天没吃过了', '今天说想吃饱，它很扛饿', '最近一周没吃鸡肉', '上次你给了 4.8 分'],
+    notes: ['皮带面要最后下，不然糊', '土豆切滚刀，比切片好吃'] },
+  { id: 'fish', cn: '红酸汤椒麻鱼', en: 'Fish in Red Sour Broth', how: 'cook', cost: 15, days: 41, times: 4, score: 5.0,
+    minutes: 45, band: 'feast', kcal: 520,
+    tags: ['贵州', '鱼', '微辣', '暖身'],
+    ing: ['黑鱼片', '红酸汤底', '番茄', '木耳', '花椒'], recipe: '小高姐 · 酸汤鱼',
+    dates: ['7月21日', '6月14日'],
+    why: ['躺在想吃清单里 3 天了', '冰箱里的番茄明天到期', '你 41 天没吃过鱼', '今天有力气好好做一顿'],
+    notes: ['酸汤底买贵州牌子的那个', '鱼片用蛋清抓一下更嫩'] },
+  { id: 'steak', cn: '牛排', en: 'Steak', how: 'cook', cost: 18, days: 12, times: 15, score: 4.5,
+    minutes: 20, band: 'feast', kcal: 690,
+    tags: ['西餐', '牛肉', '很饱', '一个人也好做'],
+    ing: ['肋眼牛排', '黄油', '迷迭香', '蒜'], recipe: 'Guga · 家里煎牛排',
+    dates: ['8月19日', '8月2日'],
+    why: ['20 分钟就能上桌', '你收藏了它', '最近没吃过牛肉', '不用洗很多锅'],
+    notes: ['煎前一小时从冰箱拿出来', '静置五分钟再切'] },
+  { id: 'tomato', cn: '番茄炒蛋', en: 'Tomato & Egg', how: 'cook', cost: 3, days: 5, times: 38, score: 4.2,
+    minutes: 10, band: 'normal', kcal: 320,
+    tags: ['家常', '清淡', '十分钟', '省钱'],
+    ing: ['番茄', '鸡蛋', '糖'], recipe: '妈妈教的，没有链接',
+    dates: ['8月26日', '8月20日', '8月11日'],
+    why: ['最快的一道', '冰箱有全部材料', '你从来没给它打过差评'],
+    notes: ['糖比盐重要', '蛋液里加一勺水更嫩'] },
+  { id: 'noodle', cn: '兰州拉面', en: 'Lanzhou Beef Noodles', how: 'out', cost: 13.5, days: 19, times: 11, score: 4.6,
+    travel: 8, price: 13.5, rest: 'lanzhou',
+    tags: ['面', '汤', '暖身', '一个人也自在'],
+    why: ['降温了，你通常会想喝汤', '19 天没去了', '完全不用动手'],
+    notes: ['要细的，加一份牛肉', '周日人少'] },
+  { id: 'hotpot', cn: '火锅', en: 'Hotpot', how: 'out', cost: 28, days: 63, times: 6, score: 4.9,
+    travel: 20, price: 28, rest: 'haidilao',
+    tags: ['很饱', '辣', '适合两个人', '慢慢吃'],
+    why: ['63 天没吃过了', '你评分最高的几道之一'],
+    notes: ['番茄锅底 + 半份麻辣', '别忘了点冰粉'] },
+  { id: 'donburi', cn: '照烧鸡腿饭', en: 'Teriyaki Chicken Rice', how: 'order', cost: 11, days: 8, times: 22, score: 4.0,
+    cuisine: 'other', eta: 35, price: 11, rest: 'teriyaki',
+    tags: ['外卖', '正常', '不用洗锅'],
+    why: ['完全不想动的时候就它', '这家没让你失望过'],
+    notes: ['备注多一份腌萝卜'] },
+  { id: 'salad', cn: '烤蔬菜沙拉碗', en: 'Roasted Veg Bowl', how: 'cook', cost: 6, days: 3, times: 17, score: 3.8,
+    minutes: 25, band: 'light', kcal: 280,
+    tags: ['清淡', '蔬菜', '轻食'],
+    ing: ['南瓜', '红洋葱', '鹰嘴豆', '柠檬', '芥末'], recipe: '自己乱做的',
+    dates: ['8月28日', '8月17日'],
+    why: ['前一天吃得很重时的解药', '烤箱一盘搞定'],
+    notes: ['南瓜和红洋葱最好吃', '柠檬芥末汁'] },
+  { id: 'mapo', cn: '麻婆豆腐', en: 'Mapo Tofu', how: 'cook', cost: 5, days: 34, times: 13, score: 4.4,
+    minutes: 20, band: 'normal', kcal: 450,
+    tags: ['川菜', '辣', '下饭', '省钱'],
+    ing: ['嫩豆腐', '牛肉末', '豆瓣酱', '花椒粉'], recipe: '陈麻婆的官方做法',
+    dates: ['7月28日'],
+    why: ['34 天没吃过了', '想吃辣但又不想大动干戈'],
+    notes: ['豆瓣酱要炒到出红油', '花椒粉最后撒'] },
+  { id: 'shrimp', cn: '蒜蓉虾仁西兰花', en: 'Garlic Prawns & Broccoli', how: 'cook', cost: 7, days: 16, times: 8, score: 4.3,
+    minutes: 15, band: 'light', kcal: 260,
+    tags: ['清淡', '虾', '十五分钟', '一个锅'],
+    ing: ['虾仁', '西兰花', '蒜'], recipe: '15 分钟一锅出',
+    dates: ['8月15日'],
+    why: ['十五分钟就能吃上', '前一天吃得重，今天该轻一点', '16 天没吃过虾了'],
+    notes: ['虾仁用厨房纸吸干再下锅', '西兰花先焯 40 秒'] },
+  { id: 'congee', cn: '香菇鸡肉粥', en: 'Chicken & Mushroom Congee', how: 'cook', cost: 4, days: 22, times: 6, score: 4.1,
+    minutes: 30, band: 'light', kcal: 300,
+    tags: ['清淡', '暖胃', '省钱'],
+    ing: ['大米', '鸡腿肉', '干香菇', '白胡椒'], recipe: '广式粥底做法',
+    dates: ['8月9日'],
+    why: ['降温了，粥最舒服', '22 天没吃过了'],
+    notes: ['米提前泡半小时', '出锅前撒白胡椒'] },
+  { id: 'ramenup', cn: '加蛋加肠豪华泡面', en: 'Loaded Instant Noodles', how: 'cook', cost: 4, days: 11, times: 21, score: 4.0,
+    minutes: 12, band: 'feast', kcal: 620,
+    tags: ['很饱', '十二分钟', '省钱', '深夜'],
+    ing: ['泡面', '鸡蛋', '香肠', '青菜'], recipe: '深夜自创',
+    dates: ['8月20日', '8月6日'],
+    why: ['十二分钟，锅都不用换', '完全不想动但又想吃点重的'],
+    notes: ['蛋要溏心，最后放', '香肠先煎一下'] },
+  { id: 'burger', cn: '芝士汉堡套餐', en: 'Cheeseburger Set', how: 'order', cost: 12, days: 14, times: 12, score: 3.9,
+    cuisine: 'west', eta: 25, price: 12, rest: 'burger',
+    tags: ['外卖', '西餐', '快', '很饱'],
+    why: ['25 分钟就到', '想快点吃到的时候最稳'],
+    notes: ['备注不要酸黄瓜'] },
+  { id: 'pizza', cn: '玛格丽特披萨', en: 'Margherita Pizza', how: 'order', cost: 16, days: 29, times: 7, score: 4.4,
+    cuisine: 'west', eta: 40, price: 16, rest: 'pizza',
+    tags: ['外卖', '西餐', '两顿的量'],
+    why: ['29 天没吃过了', '剩的明天当早餐'],
+    notes: ['要薄底'] },
+  { id: 'mala', cn: '麻辣香锅', en: 'Mala Xiang Guo', how: 'order', cost: 14, days: 37, times: 9, score: 4.7,
+    cuisine: 'cn', eta: 50, price: 14, rest: 'mala',
+    tags: ['外卖', '中餐', '辣', '很饱'],
+    why: ['37 天没吃过了', '你评分很高的一家'],
+    notes: ['中辣就够，多要藕片'] },
+  { id: 'sushi', cn: '寿司拼盘', en: 'Sushi Platter', how: 'order', cost: 19, days: 45, times: 5, score: 4.6,
+    cuisine: 'other', eta: 30, price: 19, rest: 'sushi',
+    tags: ['外卖', '日料', '清淡'],
+    why: ['45 天没吃过生鱼了', '不想吃热的时候就它'],
+    notes: ['加一份味增汤'] },
+  { id: 'chuanfan', cn: '川味辣子鸡盖饭', en: 'Sichuan Chicken Rice Bowl', how: 'order', cost: 10, days: 18, times: 14, score: 4.3,
+    cuisine: 'cn', eta: 25, price: 10, rest: 'chuanwei',
+    tags: ['外卖', '中餐', '辣', '快'],
+    why: ['25 分钟就到，还是中餐', '这家辣度稳定'],
+    notes: ['备注少油多菜'] },
+  { id: 'sandwich', cn: '街角三明治', en: 'Corner Deli Sandwich', how: 'out', cost: 6, days: 9, times: 19, score: 3.7,
+    travel: 5, price: 6, rest: 'deli',
+    tags: ['最近', '便宜', '五分钟'],
+    why: ['最省钱又不想在家的选择', '走路五分钟'],
+    notes: ['要黑麦面包'] },
+  { id: 'izakaya', cn: '居酒屋小食', en: 'Izakaya Small Plates', how: 'out', cost: 35, days: 78, times: 3, score: 4.9,
+    travel: 25, price: 35, rest: 'izakaya',
+    tags: ['日料', '慢慢吃', '适合两个人', '大餐'],
+    why: ['78 天没去了，你最想念的一家', '值得专门跑一趟'],
+    notes: ['先点烤鸡皮和玉子烧', '周五要订位'] }
+];
+
+// 餐厅 / 外卖店：avg 是人均（GBP），visits 每一笔都记了模式、金额、备注
+const RESTAURANTS = [
+  { id: 'lanzhou', cn: '马子禄兰州拉面', en: 'Mazilu Lanzhou', cuisine: '中餐 · 兰州面', city: '曼城 Manchester', travel: 8, avg: 13.5,
+    delivery: true, deliveryOnly: false, wish: false,
+    visits: [
+      { d: '8月12日', mode: '堂食', amt: 13.5, note: '细面加牛肉，汤比上次咸一点' },
+      { d: '7月24日', mode: '外卖', amt: 15.2, note: '面泡软了，下次要汤面分装' },
+      { d: '6月30日', mode: '堂食', amt: 12.8, note: '一个人坐吧台，二十分钟吃完' }] },
+  { id: 'haidilao', cn: '海底捞', en: 'Haidilao', cuisine: '中餐 · 火锅', city: '伦敦唐人街', travel: 20, avg: 28,
+    delivery: true, deliveryOnly: false, wish: false,
+    visits: [
+      { d: '6月29日', mode: '堂食', amt: 56, note: '两个人，番茄+麻辣双拼' },
+      { d: '4月18日', mode: '外卖', amt: 34, note: '外卖锅具要退，麻烦' }] },
+  { id: 'izakaya', cn: 'とり居酒屋', en: 'Tori Izakaya', cuisine: '日料 · 居酒屋', city: '东京中目黑', travel: 25, avg: 35,
+    delivery: false, deliveryOnly: false, wish: false,
+    visits: [{ d: '6月14日', mode: '堂食', amt: 38, note: '烤鸡皮和玉子烧，值得专门跑' }] },
+  { id: 'deli', cn: '街角 Deli', en: 'Corner Deli', cuisine: '西餐 · 三明治', city: '家门口', travel: 5, avg: 6,
+    delivery: true, deliveryOnly: false, wish: false,
+    visits: [
+      { d: '8月22日', mode: '堂食', amt: 6.2, note: '黑麦 + 烟熏三文鱼' },
+      { d: '8月8日', mode: '堂食', amt: 5.8, note: '早上人少' }] },
+  { id: 'chenmapo', cn: '陈麻婆豆腐', en: 'Chen Mapo Tofu', cuisine: '中餐 · 川菜', city: '成都青羊区', travel: 999, avg: 9,
+    delivery: false, deliveryOnly: false, wish: false,
+    visits: [{ d: '去年 10月3日', mode: '堂食', amt: 8.5, note: '本店的花椒是另一个层次' }] },
+  { id: 'enzo', cn: 'Trattoria da Enzo', en: 'da Enzo al 29', cuisine: '西餐 · 意大利', city: '罗马 Trastevere', travel: 999, avg: 22,
+    delivery: false, deliveryOnly: false, wish: false,
+    visits: [{ d: '去年 5月11日', mode: '堂食', amt: 24, note: '排了四十分钟，值得' }] },
+  { id: 'suantang', cn: '老凯里酸汤鱼', en: 'Laokaili Sour Fish', cuisine: '中餐 · 贵州', city: '贵阳', travel: 999, avg: 12,
+    delivery: false, deliveryOnly: false, wish: true, visits: [] },
+  { id: 'sushisaito', cn: 'Sushi Saito', en: 'Sushi Saito', cuisine: '日料 · 寿司', city: '东京港区', travel: 999, avg: 120,
+    delivery: false, deliveryOnly: false, wish: true, visits: [] },
+  { id: 'chuanwei', cn: '川味小厨（只做外卖）', en: 'Chuanwei Kitchen', cuisine: '中餐 · 川菜', city: '外卖 · 25 分钟', travel: 0, avg: 10,
+    delivery: true, deliveryOnly: true, wish: false,
+    visits: [
+      { d: '8月13日', mode: '外卖', amt: 10.5, note: '辣子鸡盖饭，辣度稳定' },
+      { d: '7月26日', mode: '外卖', amt: 21, note: '两个人点，多要了藕片' }] },
+  { id: 'mala', cn: '香锅世家（只做外卖）', en: 'Mala Guo House', cuisine: '中餐 · 麻辣香锅', city: '外卖 · 50 分钟', travel: 0, avg: 14,
+    delivery: true, deliveryOnly: true, wish: false,
+    visits: [{ d: '7月25日', mode: '外卖', amt: 14, note: '中辣，藕片和宽粉必点' }] },
+  { id: 'pizza', cn: 'Rudy\u2019s Pizza（外卖）', en: 'Rudy\u2019s', cuisine: '西餐 · 那不勒斯披萨', city: '外卖 · 40 分钟', travel: 0, avg: 16,
+    delivery: true, deliveryOnly: true, wish: false,
+    visits: [{ d: '8月2日', mode: '外卖', amt: 16, note: '薄底，剩两块当早餐' }] },
+  { id: 'sushi', cn: 'Sushi Bento（外卖）', en: 'Sushi Bento', cuisine: '日料 · 外卖', city: '外卖 · 30 分钟', travel: 0, avg: 19,
+    delivery: true, deliveryOnly: true, wish: true, visits: [] }
+];
+
+const DIARY = [
+  { day: '今天 · 8月31日', items: [
+    { slot: '早', cn: '燕麦粥 + 香蕉', note: '在家 · 8:20', mood: 'enjoy' }] },
+  { day: '昨天 · 8月30日', items: [
+    { slot: '晚', cn: '大盘鸡', note: '自己做 · 吃了两顿的量', mood: 'success' },
+    { slot: '中', cn: '番茄炒蛋盖饭', note: '十分钟搞定', mood: 'like' }] },
+  { day: '8月29日', items: [
+    { slot: '晚', cn: '麻婆豆腐', note: '花椒放多了', mood: 'spicy' },
+    { slot: '中', cn: '照烧鸡腿饭', note: '外卖 · 有点腻了', mood: 'bored' }] }
+];
+
+const NOW = new Date();
+const TODAY = { y: NOW.getFullYear(), m: NOW.getMonth() + 1, d: NOW.getDate() };
+const WDN = ['一', '二', '三', '四', '五', '六', '日'];
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+function dkey(y, m, d) { return y + '-' + m + '-' + d; }
+function dowMon(y, m, d) { return (new Date(y, m - 1, d).getDay() + 6) % 7; }
+function daysIn(y, m) { return new Date(y, m, 0).getDate(); }
+function shift(y, m, d, n) { const t = new Date(y, m - 1, d + n); return { y: t.getFullYear(), m: t.getMonth() + 1, d: t.getDate() }; }
+function cmpDay(a, b) { return (a.y - b.y) || (a.m - b.m) || (a.d - b.d); }
+
+// 示例记录按「距今几天」生成，所以换到哪天打开都在最近这段时间里
+function seedByOffset(rows) {
+  const out = {};
+  rows.forEach(r => {
+    const t = shift(TODAY.y, TODAY.m, TODAY.d, r[0]);
+    out[dkey(t.y, t.m, t.d)] = r[1];
+  });
+  return out;
+}
+
+const RECORDS = seedByOffset([
+  [0,   [{ slot: '早', cn: '燕麦粥 + 香蕉', note: '在家 · 8:20', mood: 'enjoy' }]],
+  [-1,  [{ slot: '晚', cn: '大盘鸡', note: '自己做 · 吃了两顿的量', mood: 'success' },
+         { slot: '中', cn: '番茄炒蛋盖饭', note: '十分钟搞定', mood: 'like' }]],
+  [-2,  [{ slot: '晚', cn: '麻婆豆腐', note: '花椒放多了', mood: 'spicy' },
+         { slot: '中', cn: '照烧鸡腿饭', note: '外卖 · 有点腻了', mood: 'bored' }]],
+  [-5,  [{ slot: '晚', cn: '兰州拉面', note: '马子禄 · 细的，加一份牛肉', mood: 'enjoy' }]],
+  [-6,  [{ slot: '晚', cn: '红酸汤椒麻鱼', note: '自己做 · 汤底熬了四十分钟', mood: 'love' }]],
+  [-9,  [{ slot: '中', cn: '烟熏三文鱼三明治', note: '街角 Deli · 早上人少', mood: 'like' }]],
+  [-13, [{ slot: '晚', cn: '麻辣香锅', note: '外卖 · 中辣，多要藕片', mood: 'spicy' }]],
+  [-18, [{ slot: '中', cn: '川味辣子鸡盖饭', note: '外卖 · 25 分钟就到', mood: 'enjoy' }]],
+  [-29, [{ slot: '晚', cn: '玛格丽特披萨', note: '薄底 · 剩两块当早餐', mood: 'like' }]],
+  [-36, [{ slot: '晚', cn: '川味小厨', note: '两个人点，多要了藕片', mood: 'enjoy' }]],
+  [-43, [{ slot: '晚', cn: '大盘鸡', note: '自己做 · 皮带面最后下', mood: 'success' }]]
+]);
+
+const PLANS = seedByOffset([
+  [1, [{ slot: '晚', cn: '番茄鸡蛋面', note: '计划 · 家里材料够', mood: 'thinking' }]],
+  [3, [{ slot: '晚', cn: '海底捞', note: '计划 · 和朋友约好了', mood: 'excited' }]],
+  [6, [{ slot: '中', cn: '寿司拼盘', note: '计划 · 想吃清淡的', mood: 'shy' }]]
+]);
+
+// 每家店的真实经纬度：地图落点、以及和你当前定位之间的路程都靠它算
+const GEO = {
+  lanzhou: [53.4808, -2.2426], haidilao: [51.5117, -0.1312], izakaya: [35.6444, 139.6989],
+  deli: [53.4700, -2.2350], chenmapo: [30.5723, 104.0665], enzo: [41.8890, 12.4700],
+  suantang: [26.6470, 106.6302], sushisaito: [35.6655, 139.7370],
+  chuanwei: [53.4770, -2.2500], mala: [53.4650, -2.2300], pizza: [53.4830, -2.2380], sushi: [53.4790, -2.2450]
+};
+
+// 菜系：分大区 + 细分。用户在「加一家店」里也能自己写一个，写过的会记住
+const CUISINE_GROUPS = [
+  { g: '中餐', keys: ['中餐'], items: ['川菜', '湘菜', '粤菜', '潮汕', '淮扬', '江浙', '本帮', '鲁菜', '东北', '西北', '兰州拉面', '云南', '贵州', '新疆', '台湾', '火锅', '烧烤', '面食', '早茶点心', '家常菜'] },
+  { g: '日韩', keys: ['日韩', '日料', '韩餐'], items: ['寿司', '拉面', '居酒屋', '烧肉', '定食', '韩式烤肉', '韩式家常', '炸鸡'] },
+  { g: '东南亚', keys: ['东南亚'], items: ['泰国', '越南', '新马', '印尼', '菲律宾', '缅甸'] },
+  { g: '南亚', keys: ['南亚'], items: ['印度', '尼泊尔', '斯里兰卡'] },
+  { g: '地中海', keys: ['地中海', '中东'], items: ['希腊', '土耳其', '黎巴嫩', '摩洛哥', '以色列'] },
+  { g: '欧洲', keys: ['欧洲', '西餐'], items: ['意大利', '法国', '西班牙', '葡萄牙', '德国', '英式', '北欧', '东欧', '三明治'] },
+  { g: '美洲', keys: ['美洲'], items: ['美式', '墨西哥', '秘鲁', '巴西'] },
+  { g: '其他', keys: ['其他'], items: ['素食', '轻食沙拉', '甜品', '咖啡早餐', '融合菜', '说不清'] }
+];
+const CUISINE_OPTS = CUISINE_GROUPS.reduce((a, x) => a.concat(x.items.map(i => x.g + ' · ' + i)), []);
+const CUISINE_WEST = ['欧洲', '西餐', '美洲', '地中海', '中东'];
+
+function haversine(a, b) {
+  const R = 6371, rad = x => x * Math.PI / 180;
+  const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+// 市内按 22km/h 折算，长途按 70km/h —— 只是估个到店时间，不是导航
+function minutesFor(km) {
+  if (km < 1.2) return Math.max(3, Math.round(km / 0.075));
+  if (km < 40) return Math.round(km / 22 * 60) + 4;
+  return Math.round(km / 70 * 60) + 20;
+}
+
+const SAYINGS = [
+  { t: '臭翔饿啦！', s: 'confused' },
+  { t: '菜菜辛苦啦！', s: 'like' },
+  { t: '亲亲菜，抱抱菜，最~爱菜！', s: 'love' },
+  { t: '菜！抱紧翔！', s: 'love' },
+  { t: '臭翔转晕了，你决定吧！', s: 'dizzy' },
+  { t: '嘿嘿…今天想吃点坏东西', s: 'evil' },
+  { t: '鼓掌！菜菜今天也很棒！', s: 'clap' },
+  { t: '臭翔饿到想哭了…', s: 'cry' },
+  { t: '嘘…臭翔在充电', s: 'calm' },
+  { t: '臭翔好想菜菜！', s: 'shy' },
+  { t: '菜菜一整天都没看臭翔了！', s: 'bored' },
+  { t: '臭翔最爱菜菜了', s: 'love' },
+  { t: '翔爱菜，菜爱翔！', s: 'excited' },
+  { t: '今天好累呀！', s: 'bored' },
+  { t: '咩！', s: 'giggle' },
+  { t: '臭翔不高兴了，要菜菜亲亲才能好', s: 'shy' },
+  { t: '菜~！', s: 'success' },
+  { t: 'Mua~', s: 'love' }
+];
+
+const WEEK = [
+  { w: '一', n: 25, on: true }, { w: '二', n: 26, on: true }, { w: '三', n: 27, on: false },
+  { w: '四', n: 28, on: true }, { w: '五', n: 29, on: true }, { w: '六', n: 30, on: true },
+  { w: '日', n: 31, on: true, today: true }
+];
+
+const NOTE_CHIPS = ['好吃，会再来', '有点贵', '人太多了', '外卖装得不好', '带朋友来的'];
+
+const AXIS_LABEL = {
+  band: { light: '轻食', normal: '正常', feast: '大餐' },
+  minutes: { 15: '15 分钟以内', 30: '30 分钟以内' },
+  cuisine: { cn: '中餐', west: '西餐', other: '其他' },
+  eta: { 30: '半小时到', 60: '一小时到' },
+  travel: { 10: '不用跑远', 45: '45 分钟以内' },
+  budget: { 14: '省钱', 30: '犒劳一下' }
+};
+
+const TABS = [
+  { id: 'home', cn: '首页' }, { id: 'library', cn: '菜谱' },
+  { id: 'rest', cn: '餐厅' }, { id: 'diary', cn: '记录' }, { id: 'want', cn: '想吃' }
+];
+
+const FILTERS = [
+  { v: 'all', label: '全部' }, { v: 'quick', label: '十五分钟' },
+  { v: 'light', label: '清淡' }, { v: 'feast', label: '大餐' }
+];
+
+const REST_CUISINES = [{ v: 'all', label: '全部' }].concat(
+  CUISINE_GROUPS.map(x => ({ v: x.g, label: x.g, keys: x.keys }))
+);
+const REST_CUISINES_OLD = [
+  { v: 'all', label: '全部' }, { v: '中餐', label: '中餐' },
+  { v: '西餐', label: '西餐' }, { v: '日料', label: '日料' }
+];
+
+const REST_FILTERS = [
+  { v: 'all', label: '全部' }, { v: 'wish', label: '种草中' }, { v: 'visited', label: '已打卡' },
+  { v: 'delivery', label: '可外卖' }, { v: 'deliveryOnly', label: '纯外卖店' }
+];
+
+const NOTES = [
+  { t: '决策疲劳模式（分支）', d: '先问怎么吃，后两问跟着分岔：自己做→热量+力气，答案从菜谱里出；点外卖→中西其他+多快送到，答案是一家可外卖的店；出去吃→跑多远+预算，答案是一家堂食的店。' },
+  { t: '菜谱 · 只放自己做的菜', d: '食材、菜谱/视频链接、热量、耗时、花费、吃过几次和每次的日期，外加菜谱截图和成品照的上传位。外卖和堂食的菜挂在各自的餐厅下面。' },
+  { t: '餐厅与纯外卖店', d: '十二家店：种草中 / 已打卡几次、人均、距离、菜系、是否可外卖。纯外卖店单独可筛。' },
+  { t: '打卡表单', d: '日期可加减、堂食还是外卖（纯外卖店锁死外卖）、花了多少钱、多张照片、一句备注。保存后立刻进记录和总花费。' },
+  { t: '花了多少钱', d: '每家店累计花费和顶部总花费都从每一笔打卡算出来，人均标准（低/中/高）在设置里可调。' },
+  { t: '多货币', d: '五种货币随时切换，只换显示不动数据；打卡时还会显示换算参考。' },
+  { t: '世界地图', d: '打卡和种草的店按真实经纬度落点（Natural Earth 数据），点圆点看是哪一家、去过几次。' }
+];
+
+const WHO_NAME = { cai: '菜菜', guo: '果果' };
+const WHO_COLOR = { cai: '#c67139', guo: '#8fa073' };
+
+class Component extends DCLogic {
+  state = {
+    screen: 'home', qi: 0, answers: {}, pickIdx: 0,
+    tabsOpen: false, filter: 'all', restFilter: 'all', restCuisine: 'all',
+    sel: { y: TODAY.y, m: TODAY.m, d: TODAY.d }, calY: TODAY.y, calM: TODAY.m, calMode: 'week',
+    calPickOpen: false, pickY: TODAY.y, say: null, sayState: null,
+    savedAt: null, backupMsg: '', usage: null,
+    cloud: { status: 'off', message: '还没连云端', lastSync: null },
+    cloudUrl: '', cloudKey: '', cloudOpen: false, sqlOpen: false, copied: false,
+    here: null, locState: 'idle', editingRest: null, editingDish: null, confirmDel: false,
+    rform: { cn: '', en: '', cuisine: CUISINE_OPTS[0], city: '', avg: '', delivery: false, deliveryOnly: false, lat: null, lon: null },
+    dform: { cn: '', en: '', how: 'cook', cost: '', kcal: '', mins: '', times: '0', ing: '', recipe: '', link: '', note: '', tags: '' },
+    q: '', photoTick: 0,
+    detailId: 'dpj', restId: 'lanzhou',
+    want: ['fish', 'hotpot'], justLogged: false,
+    cur: 0, lowBand: 15, highBand: 35,
+    visits: {}, pvisits: {}, form: { dayOffset: 0, mode: '堂食', amt: 15, note: '好吃，会再来', by: '', together: true },
+    who: '', authUser: null, authReady: false,
+    loginEmail: '', loginPw: '', loginErr: '', loggingIn: false, toasts: []
+  };
+
+  meWho() { return this.state.who || 'cai'; }
+  otherWho() { return this.meWho() === 'cai' ? 'guo' : 'cai'; }
+  nameOf(w) { return WHO_NAME[w] || WHO_NAME.cai; }
+
+  // ── 一行一改：本地数据摊成云端的行 ─────────────────────
+  rows() {
+    const st = this.state, who = this.meWho(), out = {};
+    DISHES.forEach(d => { out['dish:' + d.id] = { kind: 'dish', who: who, payload: d }; });
+    RESTAURANTS.forEach(r => { out['rest:' + r.id] = { kind: 'rest', who: who, payload: r }; });
+    [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
+      Object.keys(pair[1]).forEach(day => {
+        const mine = (pair[1][day] || []).filter(it => (it.by || 'cai') === who);
+        if (mine.length) out[pair[0] + ':' + day + ':' + who] = { kind: pair[0], who: who, payload: { day: day, items: mine } };
+      });
+    });
+    out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
+    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand } };
+    return out;
+  }
+
+  // full=true 表示这是一次完整对齐（开机拉全量）；否则是实时来的一两行
+  applyRows(map, full) {
+    const keys = Object.keys(map || {});
+    if (!keys.length && !full) return;
+    const me = this.meWho(), other = this.otherWho();
+    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0);
+
+    if (full && kinds('dish').length) {
+      DISHES.length = 0;
+      kinds('dish').forEach(k => DISHES.push(map[k].payload));
+    } else {
+      kinds('dish').forEach(k => {
+        const d = map[k].payload, i = DISHES.findIndex(x => x.id === d.id);
+        if (i > -1) DISHES[i] = d; else DISHES.push(d);
+      });
+    }
+    if (full && kinds('rest').length) {
+      RESTAURANTS.length = 0;
+      kinds('rest').forEach(k => RESTAURANTS.push(map[k].payload));
+    } else {
+      kinds('rest').forEach(k => {
+        const r = map[k].payload, i = RESTAURANTS.findIndex(x => x.id === r.id);
+        if (i > -1) RESTAURANTS[i] = r; else RESTAURANTS.push(r);
+      });
+    }
+    RESTAURANTS.forEach(r => { if (!r.geo && GEO[r.id]) r.geo = GEO[r.id]; });
+
+    [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
+      const rows = kinds(pair[0]);
+      if (!rows.length) return;
+      if (full) Object.keys(pair[1]).forEach(d => { delete pair[1][d]; });
+      rows.forEach(k => {
+        const row = map[k], day = row.payload.day, w = row.who || 'cai';
+        const items = (row.payload.items || []).map(it => Object.assign({}, it, { by: it.by || w }));
+        const kept = (pair[1][day] || []).filter(it => (it.by || 'cai') !== w);
+        const merged = kept.concat(items);
+        if (merged.length) pair[1][day] = merged; else delete pair[1][day];
+      });
+    });
+
+    const patch = {};
+    if (map['visit:' + other]) patch.pvisits = map['visit:' + other].payload || {};
+    if (full && !map['visit:' + other]) patch.pvisits = {};
+    if (map['visit:' + me]) patch.visits = map['visit:' + me].payload || {};
+    const pref = map['pref:' + me];
+    if (pref && pref.payload) {
+      const p = pref.payload;
+      if (p.want) patch.want = p.want;
+      if (p.cur != null) patch.cur = p.cur;
+      if (p.lowBand != null) patch.lowBand = p.lowBand;
+      if (p.highBand != null) patch.highBand = p.highBand;
+    }
+    if (Object.keys(patch).length) this.setState(patch);
+    this.forceUpdate();
+  }
+
+  // ── 照片墙：想加几张加几张，末尾永远留一个空位 ─────────
+  // legacy 是以前固定位子的 id，有图就一起显示，不丢
+  gallery(prefix, legacy, cap) {
+    const all = window.PhotoStore ? window.PhotoStore.all() : {};
+    const cap2 = cap || 30;
+    const list = (legacy || []).filter(id => all[id]).map(id => ({ id: id, ph: '照片', filled: true }));
+    for (let i = 0; i < cap2; i++) if (all[prefix + i]) list.push({ id: prefix + i, ph: '照片', filled: true });
+    if (list.length < cap2) {
+      let n = 0;
+      while (all[prefix + n]) n++;
+      list.push({ id: prefix + n, ph: list.length ? '再加一张' : '拖照片进来', filled: false });
+    }
+    return list;
+  }
+
+  // 一家店所有打卡照片汇总（每次打卡都往这里攒），末尾留一个空位可以直接补
+  checkinGallery(restId, cap) {
+    const all = window.PhotoStore ? window.PhotoStore.all() : {};
+    const pre = 'checkin-' + restId + '-';
+    const list = Object.keys(all).filter(k => k.indexOf(pre) === 0).sort()
+      .map(id => ({ id: id, ph: '照片', filled: true }));
+    if (list.length < (cap || 60)) {
+      let n = 0;
+      while (all[pre + 'add-p' + n]) n++;
+      list.push({ id: pre + 'add-p' + n, ph: list.length ? '再加一张' : '拖照片进来', filled: false });
+    }
+    return list;
+  }
+
+  // ── 按键音：两个小圆音，越大的按钮越低越软 ─────────────
+  blip(big) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!this.ac) this.ac = new AC();
+      const ac = this.ac;
+      if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime, base = (big ? 588 : 784) * (0.985 + Math.random() * 0.03);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(big ? 0.12 : 0.075, t + 0.014);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (big ? 0.24 : 0.16));
+      g.connect(ac.destination);
+      const o = ac.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(base, t);
+      o.frequency.exponentialRampToValueAtTime(base * 1.5, t + 0.07);
+      o.connect(g);
+      const o2 = ac.createOscillator(), g2 = ac.createGain();
+      o2.type = 'triangle';
+      o2.frequency.setValueAtTime(base * 3, t);
+      g2.gain.setValueAtTime(0.022, t);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      o2.connect(g2); g2.connect(ac.destination);
+      o.start(t); o.stop(t + 0.28);
+      o2.start(t); o2.stop(t + 0.1);
+    } catch (e) {}
+  }
+
+  // ── 提示条 ───────────────────────────────────────────
+  toast(text, mood) {
+    const id = 't' + Date.now() + Math.random().toString(36).slice(2, 5);
+    this.setState({ toasts: this.state.toasts.concat([{ id: id, text: text, mood: mood || 'excited' }]) });
+    setTimeout(() => this.setState({ toasts: this.state.toasts.filter(t => t.id !== id) }), 5200);
+  }
+
+  remoteRow(row) {
+    this.applyRows({ [row.key]: row }, false);
+    if (row.deleted) return;
+    const name = this.nameOf(row.who || this.otherWho());
+    const p = row.payload || {};
+    const first = (p.items || [])[0] || {};
+    const msg = {
+      dish: () => name + '加了一道菜：' + (p.cn || ''),
+      rest: () => name + '加了一家店：' + (p.cn || ''),
+      record: () => name + '记了一顿：' + (first.cn || ''),
+      plan: () => name + '计划了 ' + (p.day || '').slice(5) + '：' + (first.cn || ''),
+      visit: () => name + '刚打了个卡',
+      pref: () => ''
+    }[row.kind];
+    const text = msg ? msg() : '';
+    if (!text) return;
+    this.toast(text, row.kind === 'plan' ? 'thinking' : 'love');
+    if (document.hidden && window.Notification && Notification.permission === 'granted') {
+      try { new Notification('臭翔今天吃什么', { body: text }); } catch (e) {}
+    }
+  }
+
+  async doLogin() {
+    const st = this.state;
+    if (!st.who) return this.setState({ loginErr: '先说你是菜菜还是果果' });
+    this.setState({ loggingIn: true, loginErr: '' });
+    try {
+      window.CloudSync.setWho(st.who);
+      await window.CloudSync.signIn(st.loginEmail, st.loginPw);
+      this.setState({ loggingIn: false, loginPw: '' });
+      if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+      this.cloudSync();
+    } catch (e) {
+      this.setState({ loggingIn: false, loginErr: e.message || '登录没成功' });
+    }
+  }
+
+  async doLogout() {
+    await window.CloudSync.signOut();
+    this.setState({ authUser: null, screen: 'home' });
+  }
+
+  go(screen, patch) {
+    if (screen === 'settings') { this.refreshUsage(); }
+    const listy = screen === 'library' || screen === 'rest' || screen === 'diary' || screen === 'want';
+    this.setState(Object.assign({ screen: screen, tabsOpen: listy }, patch || {}));
+  }
+
+  money(gbp) {
+    const c = CUR[this.state.cur];
+    const v = gbp * c.rate;
+    return c.sym + (c.dp === 0 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
+  }
+
+  restaurant(id) { return RESTAURANTS.filter(r => r.id === id)[0] || RESTAURANTS[0]; }
+
+  allVisits(r) {
+    return (r.visits || [])
+      .concat(this.state.visits[r.id] || [])
+      .concat(this.state.pvisits[r.id] || []);
+  }
+
+  bandOf(avg) {
+    if (avg <= this.state.lowBand) return '人均低';
+    if (avg <= this.state.highBand) return '人均中';
+    return '人均高';
+  }
+
+  answer(key, v) {
+    const answers = Object.assign({}, this.state.answers, { [key]: v });
+    const flow = flowFor(answers);
+    if (this.state.qi < flow.length - 1) return this.setState({ answers: answers, qi: this.state.qi + 1 });
+    this.setState({ answers: answers, screen: 'thinking', tabsOpen: false });
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.setState({ screen: 'result', pickIdx: 0 }), 1600);
+  }
+
+  cuisineKeyOf(r) {
+    const c = r.cuisine || '';
+    if (c.indexOf('中餐') === 0) return 'cn';
+    if (CUISINE_WEST.some(k => c.indexOf(k) === 0)) return 'west';
+    return 'other';
+  }
+
+  // 菜系筛选：一个大区对得上好几种老写法（日韩 / 日料 / 韩餐）
+  inCuisineGroup(c, v) {
+    if (v === 'all') return true;
+    const row = REST_CUISINES.filter(x => x.v === v)[0];
+    const keys = (row && row.keys) || [v];
+    return keys.some(k => (c || '').indexOf(k) === 0);
+  }
+
+  etaOf(r) { return r.eta != null ? r.eta : (r.deliveryOnly ? 30 : 45); }
+
+  dishesOf(id) { return DISHES.filter(d => d.rest === id); }
+
+  // 自己做 → 从菜谱里挑；点外卖 / 出去吃 → 从餐厅里挑
+  candidates(a) {
+    if (a.how !== 'order' && a.how !== 'out') {
+      return DISHES.filter(d => d.how === 'cook').map(d => ({
+        kind: 'dish', ref: d, id: d.id, cn: d.cn, en: d.en, tags: d.tags, why: d.why,
+        minutes: d.minutes, band: d.band, price: d.price != null ? d.price : d.cost,
+        score: d.score, days: d.days
+      }));
+    }
+    const isOrder = a.how === 'order';
+    return RESTAURANTS.filter(r => isOrder ? r.delivery : !r.deliveryOnly).map(r => {
+      const vs = this.allVisits(r);
+      const eta = this.etaOf(r);
+      const travel = r.travel == null ? 999 : r.travel;
+      return {
+        kind: 'rest', ref: r, id: r.id, cn: r.cn, en: r.en,
+        tags: [r.cuisine, this.bandOf(r.avg)]
+          .concat(isOrder ? ['送到约 ' + eta + ' 分钟'] : [travel >= 999 ? '要专程跑一趟' : '过去约 ' + travel + ' 分钟'])
+          .concat(this.dishesOf(r.id).slice(0, 2).map(d => d.cn)),
+        why: (vs.length
+          ? ['去过 ' + vs.length + ' 次，没让你失望过', '上一次是 ' + vs[0].d]
+          : ['一直在你的种草清单里', '还没去过，正好开个张'])
+          .concat(['人均 ' + this.money(r.avg)])
+          .concat(isOrder ? ['大概 ' + eta + ' 分钟就送到'] : [r.city]),
+        cuisine: this.cuisineKeyOf(r), eta: eta, travel: travel, price: r.avg,
+        score: vs.length ? 4.6 : 4.0, days: vs.length ? 18 : 60
+      };
+    });
+  }
+
+  rank(a) {
+    let pool = this.candidates(a);
+    const axes = [
+      { k: 'minutes', f: c => c.minutes <= a.minutes },
+      { k: 'eta', f: c => c.eta <= a.eta },
+      { k: 'travel', f: c => c.travel <= a.travel },
+      { k: 'budget', f: c => c.price <= a.budget },
+      { k: 'band', f: c => c.band === a.band },
+      { k: 'cuisine', f: c => c.cuisine === a.cuisine }
+    ];
+    const dropped = [];
+    axes.forEach(ax => {
+      if (a[ax.k] === undefined) return;
+      const next = pool.filter(ax.f);
+      if (next.length) pool = next;
+      else dropped.push((AXIS_LABEL[ax.k] || {})[a[ax.k]] || ax.k);
+    });
+    // 「想吃」清单里的加一点分，占优但不霸道
+    const sc = c => c.days * 0.5 + c.score * 6 + (this.state.want.indexOf(c.id) > -1 ? 18 : 0);
+    pool.sort((x, y) => sc(y) - sc(x));
+    return { list: pool, dropped: dropped };
+  }
+
+  back() {
+    if (this.state.qi === 0) return this.go('home');
+    this.setState({ qi: this.state.qi - 1 });
+  }
+
+  toggleWant(id) {
+    const has = this.state.want.indexOf(id) > -1;
+    this.setState({ want: has ? this.state.want.filter(w => w !== id) : this.state.want.concat([id]) });
+  }
+
+  patchForm(p) { this.setState({ form: Object.assign({}, this.state.form, p) }); }
+
+  formDateLabel() {
+    const t = shift(TODAY.y, TODAY.m, TODAY.d, this.state.form.dayOffset);
+    return t.m + '月' + t.d + '日';
+  }
+
+  // ── 存档 ───────────────────────────────────────────────
+  snapshot() {
+    const st = this.state;
+    return {
+      dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
+      visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, cur: st.cur,
+      lowBand: st.lowBand, highBand: st.highBand
+    };
+  }
+
+  hydrate(data) {
+    if (!data) return;
+    const swap = (arr, next) => { if (Array.isArray(next)) { arr.length = 0; next.forEach(x => arr.push(x)); } };
+    const fill = (obj, next) => { if (next && typeof next === 'object') { Object.keys(obj).forEach(k => delete obj[k]); Object.assign(obj, next); } };
+    swap(DISHES, data.dishes); swap(RESTAURANTS, data.restaurants);
+    fill(RECORDS, data.records); fill(PLANS, data.plans);
+    this.setState({
+      visits: data.visits || {}, pvisits: data.pvisits || {},
+      who: data.who || this.state.who, want: data.want || [],
+      cur: data.cur != null ? data.cur : this.state.cur,
+      lowBand: data.lowBand != null ? data.lowBand : this.state.lowBand,
+      highBand: data.highBand != null ? data.highBand : this.state.highBand
+    });
+  }
+
+  persist() {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      if (window.AppStore && window.AppStore.save(this.snapshot())) {
+        if (!this.state.savedAt || Date.now() - this.state.savedAt > 20000) this.setState({ savedAt: Date.now() });
+      }
+      this.cloudPushSoon();
+    }, 600);
+  }
+
+  cloudSync() {
+    if (!window.CloudSync || !window.CloudSync.configured()) return;
+    window.CloudSync.syncNow(() => this.rows(), remote => {
+      this.applyRows(remote, true);
+      if (window.AppStore) window.AppStore.save(this.snapshot());
+    });
+  }
+
+  // 本地存完再推云端；只推变过的行，推失败不影响本地
+  cloudPushSoon() {
+    if (!window.CloudSync || !window.CloudSync.configured() || !window.CloudSync.user()) return;
+    clearTimeout(this.cloudTimer);
+    this.cloudTimer = setTimeout(() => window.CloudSync.pushQuiet(this.rows()), 3000);
+  }
+
+  connectCloud() {
+    window.CloudSync.setConfig(this.state.cloudUrl, this.state.cloudKey);
+    if (window.CloudSync.configured()) this.cloudSync();
+  }
+
+  refreshUsage() {
+    if (!window.AppStore) return;
+    window.AppStore.usage().then(u => this.setState({ usage: u })).catch(() => {});
+  }
+
+  async backupNow() {
+    try {
+      if (window.AppStore) window.AppStore.save(this.snapshot());
+      const r = await window.AppStore.exportFile(this.snapshot());
+      this.setState({ backupMsg: '已下载 ' + r.name + '（含 ' + r.photos + ' 张照片）' });
+      this.refreshUsage();
+    } catch (e) {
+      this.setState({ backupMsg: '下载没成功：' + e.message });
+    }
+  }
+
+  async restoreFrom(file) {
+    if (!file) return;
+    try {
+      const b = await window.AppStore.importFile(file);
+      this.hydrate(b.data);
+      this.forceUpdate();
+      this.setState({ backupMsg: '恢复好了，这份备份存于 ' + new Date(b.savedAt).toLocaleString('zh-CN') });
+      this.refreshUsage();
+    } catch (e) {
+      this.setState({ backupMsg: '读不了这个文件：' + e.message });
+    }
+  }
+
+  saveCheckin() {
+    const r = this.restaurant(this.state.restId);
+    const f = this.state.form;
+    const gbp = f.amt / CUR[this.state.cur].rate;
+    const by = f.by || this.meWho();
+    const entry = { d: this.formDateLabel(), mode: f.mode, amt: gbp, note: f.note, by: by, together: !!f.together };
+    const list = (this.state.visits[r.id] || []).concat([entry]);
+    // 同时写进当天的记录，一起吃的就两个人都算
+    const t = shift(TODAY.y, TODAY.m, TODAY.d, f.dayOffset);
+    const key = dkey(t.y, t.m, t.d);
+    const item = {
+      slot: '晚', cn: r.cn, mood: 'enjoy', by: by, together: !!f.together,
+      note: f.mode + ' · ' + this.money(gbp) + (f.note ? ' · ' + f.note : '')
+    };
+    const day = (RECORDS[key] || []).filter(it => !(it.cn === r.cn && (it.by || 'cai') === by));
+    RECORDS[key] = day.concat([item]);
+    this.setState({
+      visits: Object.assign({}, this.state.visits, { [r.id]: list }),
+      screen: 'restDetail', tabsOpen: false
+    });
+  }
+
+  componentDidUpdate() { this.persist(); }
+
+  componentWillUnmount() {
+    clearTimeout(this.timer); clearTimeout(this.sayTimer); clearTimeout(this.saveTimer); clearTimeout(this.cloudTimer);
+    window.removeEventListener('place-pick', this.onPlace);
+    document.removeEventListener('pointerdown', this.onTapSound, true);
+    window.removeEventListener('online', this.onOnline);
+    this.unsubCloud && this.unsubCloud();
+    this.unsubAuth && this.unsubAuth();
+    this.unsubRow && this.unsubRow();
+    this.unsubPhotos && this.unsubPhotos();
+  }
+
+  componentDidMount() {
+    RESTAURANTS.forEach(r => { if (!r.geo && GEO[r.id]) r.geo = GEO[r.id]; });
+    if (window.AppStore) this.hydrate(window.AppStore.load());
+    if (window.PhotoStore) {
+      window.PhotoStore.ready().then(() => this.forceUpdate());
+      // 加/换/删照片后，照片墙要立刻长出新的空位
+      this.unsubPhotos = window.PhotoStore.subscribe(() => this.setState({ photoTick: Date.now() }));
+    }
+    if (window.CloudSync) {
+      const c = window.CloudSync.config();
+      this.setState({ cloudUrl: c.url, cloudKey: c.key, who: window.CloudSync.who() || this.state.who });
+      this.unsubCloud = window.CloudSync.subscribe(s => this.setState({ cloud: s }));
+      this.unsubAuth = window.CloudSync.onAuth(u => this.setState({ authUser: u, authReady: true }));
+      this.unsubRow = window.CloudSync.onRemoteRow(r => this.remoteRow(r));
+      window.CloudSync.init().then(u => {
+        this.setState({ authUser: u, authReady: true });
+        if (u) this.cloudSync();
+      });
+      // 本地先跑起来，云端在后台追平；连不上就安静退回本地
+      this.onOnline = () => this.cloudSync();
+      window.addEventListener('online', this.onOnline);
+    }
+    this.onTapSound = e => {
+      const el = e.target && e.target.closest && e.target.closest('button,[role="button"],input,textarea');
+      if (!el || el.disabled) return;
+      const h = parseFloat(getComputedStyle(el).minHeight) || el.offsetHeight || 0;
+      this.blip(h >= 56);
+    };
+    document.addEventListener('pointerdown', this.onTapSound, true);
+    this.onPlace = e => this.patchRForm({ lat: e.detail.lat, lon: e.detail.lon, city: e.detail.city || this.state.rform.city });
+    window.addEventListener('place-pick', this.onPlace);
+    this.locate();
+  }
+
+  locate() {
+    if (!navigator.geolocation) return this.setState({ locState: 'off' });
+    this.setState({ locState: 'asking' });
+    navigator.geolocation.getCurrentPosition(
+      p => { this.setState({ here: [p.coords.latitude, p.coords.longitude], locState: 'on' }); this.recalcTravel(); },
+      () => this.setState({ locState: 'denied' }),
+      { timeout: 8000, maximumAge: 600000 }
+    );
+  }
+
+  // 有定位就用真实距离覆盖手填的 travel，没有就保留原值
+  recalcTravel() {
+    const here = this.state.here;
+    if (!here) return;
+    RESTAURANTS.forEach(r => {
+      if (!r.geo || r.deliveryOnly) return;
+      r.km = haversine(here, r.geo);
+      r.travel = minutesFor(r.km);
+    });
+    DISHES.forEach(d => {
+      if (d.how !== 'out' || !d.rest) return;
+      const r = this.restaurant(d.rest);
+      if (r && r.travel != null) d.travel = r.travel;
+    });
+    this.forceUpdate();
+  }
+
+  travelLine(r) {
+    if (r.deliveryOnly) return '只做外卖';
+    if (!this.state.here || r.km == null) {
+      if (r.travel == null) return '还没算过路程';
+      return r.travel >= 999 ? '要专程飞一趟' : '约 ' + r.travel + ' 分钟';
+    }
+    const km = r.km < 10 ? r.km.toFixed(1) : Math.round(r.km);
+    return '距你 ' + km + ' km · 约 ' + r.travel + ' 分钟';
+  }
+
+  patchRForm(p) { this.setState({ rform: Object.assign({}, this.state.rform, p) }); }
+  patchDForm(p) { this.setState({ dform: Object.assign({}, this.state.dform, p) }); }
+
+  openRestForm(id) {
+    const r = id ? this.restaurant(id) : null;
+    this.setState({
+      screen: 'restForm', tabsOpen: false, editingRest: id || null, confirmDel: false,
+      rform: r
+        ? { cn: r.cn, en: r.en || '', cuisine: r.cuisine, city: r.city, avg: String(r.avg),
+            delivery: !!r.delivery, deliveryOnly: !!r.deliveryOnly,
+            lat: r.geo ? r.geo[0] : null, lon: r.geo ? r.geo[1] : null }
+        : { cn: '', en: '', cuisine: CUISINE_OPTS[0], city: '', avg: '',
+            delivery: false, deliveryOnly: false, lat: null, lon: null }
+    });
+  }
+
+  saveRest() {
+    const f = this.state.rform;
+    if (!f.cn.trim()) return;
+    const avg = parseFloat(f.avg) || 0;
+    const patch = {
+      cn: f.cn.trim(), en: f.en.trim() || f.cn.trim(), cuisine: f.cuisine,
+      city: f.city.trim() || '还没写地址', avg: avg,
+      delivery: f.delivery || f.deliveryOnly, deliveryOnly: f.deliveryOnly,
+      geo: f.lat != null ? [f.lat, f.lon] : null
+    };
+    let id = this.state.editingRest;
+    if (id) {
+      Object.assign(this.restaurant(id), patch);
+    } else {
+      id = 'r' + Date.now();
+      RESTAURANTS.push(Object.assign({ id: id, wish: true, visits: [] }, patch));
+    }
+    this.recalcTravel();
+    this.setState({ screen: 'restDetail', restId: id, editingRest: null, confirmDel: false });
+  }
+
+  deleteRest() {
+    const id = this.state.editingRest;
+    const i = RESTAURANTS.map(r => r.id).indexOf(id);
+    if (i > -1) RESTAURANTS.splice(i, 1);
+    const visits = Object.assign({}, this.state.visits);
+    delete visits[id];
+    this.setState({ screen: 'rest', tabsOpen: true, visits: visits, editingRest: null, confirmDel: false,
+      restId: RESTAURANTS[0] ? RESTAURANTS[0].id : '' });
+  }
+
+  openDishForm(id) {
+    const d = id ? DISHES.filter(x => x.id === id)[0] : null;
+    this.setState({
+      screen: 'dishForm', tabsOpen: false, editingDish: id || null, confirmDel: false,
+      dform: d
+        ? { cn: d.cn, en: d.en || '', how: d.how, cost: String(d.cost),
+            kcal: String(d.kcal || ''), mins: String(d.minutes || d.eta || d.travel || ''),
+            times: String(d.times || 0), ing: (d.ing || []).join('、'),
+            recipe: d.recipe || '', link: d.link || '', note: (d.notes || []).join('；'),
+            tags: (d.tags || []).join('、') }
+        : { cn: '', en: '', how: 'cook', cost: '', kcal: '', mins: '', times: '0',
+            ing: '', recipe: '', link: '', note: '', tags: '' },
+      dform2: null
+    });
+  }
+
+  saveDish() {
+    const f = this.state.dform;
+    if (!f.cn.trim()) return;
+    const mins = parseInt(f.mins, 10) || 30;
+    const patch = {
+      cn: f.cn.trim(), en: f.en.trim() || f.cn.trim(), how: f.how,
+      cost: parseFloat(f.cost) || 0, price: parseFloat(f.cost) || 0,
+      kcal: parseInt(f.kcal, 10) || null,
+      times: parseInt(f.times, 10) || 0,
+      ing: f.ing ? f.ing.split(/[、,，]/).map(s => s.trim()).filter(Boolean) : [],
+      recipe: f.recipe.trim(), link: f.link.trim(),
+      tags: f.tags ? f.tags.split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean) : [],
+      notes: f.note ? f.note.split(/[；;]/).map(s => s.trim()).filter(Boolean) : []
+    };
+    if (f.how === 'cook') { patch.minutes = mins; patch.band = mins <= 15 ? 'light' : 'normal'; }
+    if (f.how === 'order') { patch.eta = mins; patch.cuisine = 'other'; }
+    if (f.how === 'out') { patch.travel = mins; }
+    let id = this.state.editingDish;
+    if (id) {
+      Object.assign(DISHES.filter(x => x.id === id)[0], patch);
+    } else {
+      id = 'd' + Date.now();
+      DISHES.push(Object.assign({ id: id, days: 0, score: 0, tags: [], why: ['刚加进菜库，还没试过'], dates: [] }, patch));
+    }
+    this.setState({ screen: 'detail', detailId: id, editingDish: null, confirmDel: false });
+  }
+
+  deleteDish() {
+    const id = this.state.editingDish;
+    const i = DISHES.map(d => d.id).indexOf(id);
+    if (i > -1) DISHES.splice(i, 1);
+    this.setState({ screen: 'library', tabsOpen: true, editingDish: null, confirmDel: false,
+      want: this.state.want.filter(w => w !== id),
+      detailId: DISHES[0] ? DISHES[0].id : '' });
+  }
+
+  tapMascot() {
+    const now = Date.now();
+    if (this.lastTap && now - this.lastTap < 450) {
+      this.lastTap = 0;
+      let p = SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+      let guard = 0;
+      while (p.t === this.lastSaid && guard++ < 8) p = SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+      this.lastSaid = p.t;
+      clearTimeout(this.sayTimer);
+      this.setState({ say: p.t, sayState: p.s, justLogged: false });
+      this.sayTimer = setTimeout(() => this.setState({ say: null, sayState: null }), 3200);
+    } else {
+      this.lastTap = now;
+    }
+  }
+
+  pickDay(y, m, d) {
+    this.setState({ sel: { y: y, m: m, d: d }, calY: y, calM: m, calMode: 'week', calPickOpen: false });
+  }
+
+  stepMonth(n) {
+    const t = new Date(this.state.calY, this.state.calM - 1 + n, 1);
+    this.setState({ calY: t.getFullYear(), calM: t.getMonth() + 1 });
+  }
+
+  dayCell(t) {
+    const st = this.state;
+    const key = dkey(t.y, t.m, t.d);
+    const rec = !!RECORDS[key], plan = !!PLANS[key];
+    const isSel = cmpDay(t, st.sel) === 0;
+    const isToday = cmpDay(t, TODAY) === 0;
+    return {
+      n: t.d, real: true, blank: false,
+      bg: isSel ? '#c67139' : isToday ? '#f6ecd8' : 'transparent',
+      border: isToday && !isSel ? '2px dashed #c67139' : '2px solid transparent',
+      fg: isSel ? '#fdf8ee' : '#3a2617',
+      fg2: isSel ? 'rgba(253,248,238,.72)' : 'rgba(50,40,28,.42)',
+      rec: rec, plan: plan,
+      recCol: isSel ? '#fdf8ee' : '#ecb75e',
+      planCol: isSel ? '#fdf8ee' : '#8fa073',
+      aria: t.m + '月' + t.d + '日' + (isToday ? '，今天' : '') +
+        (rec && plan ? '，有饮食记录和用餐计划' : rec ? '，有饮食记录' : plan ? '，有用餐计划' : '，暂无记录'),
+      onPick: () => this.pickDay(t.y, t.m, t.d)
+    };
+  }
+
+  renderVals() {
+    const st = this.state;
+    const flow = flowFor(st.answers);
+
+    const sel = st.sel;
+    const selDow = dowMon(sel.y, sel.m, sel.d);
+    const wkStart = shift(sel.y, sel.m, sel.d, -selDow);
+    const weekCells = [];
+    for (let i = 0; i < 7; i++) {
+      const c = this.dayCell(shift(wkStart.y, wkStart.m, wkStart.d, i));
+      c.w = WDN[i];
+      weekCells.push(c);
+    }
+    const lead = dowMon(st.calY, st.calM, 1);
+    const monthCells = [];
+    for (let i = 0; i < lead; i++) monthCells.push({ blank: true, real: false });
+    for (let d = 1; d <= daysIn(st.calY, st.calM); d++) monthCells.push(this.dayCell({ y: st.calY, m: st.calM, d: d }));
+
+    const selKey = dkey(sel.y, sel.m, sel.d);
+    const selFuture = cmpDay(sel, TODAY) > 0;
+    const dayDiff = Math.round((new Date(sel.y, sel.m - 1, sel.d) - new Date(TODAY.y, TODAY.m - 1, TODAY.d)) / 86400000);
+    const relName = dayDiff === 0 ? '今天' : dayDiff === -1 ? '昨天' : dayDiff === 1 ? '明天' : null;
+    const selLabel = (relName ? relName + ' · ' : '') + sel.m + '月' + sel.d + '日 · 星期' + WDN[selDow];
+    // 同一天、同一顿、同一道菜：两个人各记了一笔就并成一条，标「一起吃的」
+    const mergeDay = list => {
+      const out = [], seen = {};
+      (list || []).forEach(it => {
+        const k = (it.slot || '') + '|' + (it.cn || '');
+        if (seen[k] != null) {
+          const prev = out[seen[k]];
+          const whos = (prev.whos || []).concat([it.by || 'cai']);
+          out[seen[k]] = Object.assign({}, prev, {
+            whos: whos.filter((w, i) => whos.indexOf(w) === i),
+            together: prev.together || it.together,
+            note: prev.note === it.note ? prev.note : prev.note + ' / ' + it.note
+          });
+          return;
+        }
+        seen[k] = out.length;
+        out.push(Object.assign({}, it, { whos: [it.by || 'cai'] }));
+      });
+      return out;
+    };
+    const stamp = it => {
+      const both = it.together || it.whos.length > 1;
+      return {
+        tag: both ? '一起吃的' : WHO_NAME[it.whos[0]] || '菜菜',
+        tagBg: both ? '#f2c572' : (it.whos[0] === 'guo' ? '#eff3e4' : '#f6e0cc'),
+        tagFg: both ? '#7a4413' : (it.whos[0] === 'guo' ? '#56633f' : '#8c491a')
+      };
+    };
+    const selItems = mergeDay(RECORDS[selKey]).map(it => Object.assign({}, it, stamp(it), {
+      bg: '#f6ecd8', border: '2px solid transparent', slotColor: '#8c491a'
+    })).concat(mergeDay(PLANS[selKey]).map(it => Object.assign({}, it, stamp(it), {
+      bg: 'transparent', border: '2px dashed rgba(143,160,115,.6)', slotColor: '#6f7f52'
+    })));
+    const q = flow[Math.min(st.qi, flow.length - 1)];
+    const ranked = this.rank(st.answers);
+    const order = ranked.list;
+    const pick = order.length ? order[st.pickIdx % order.length]
+      : { kind: 'none', id: 'none', cn: '这一类还是空的', en: '', tags: [], why: ['先去加一道菜谱，或者加一家店'] };
+    const pickIsRest = pick.kind === 'rest';
+    const compromise = ranked.dropped.length
+      ? '暂时没有「' + ranked.dropped.join('、') + '」的选择，这是最接近的一个。' : '';
+    const RECIPES = DISHES.filter(d => d.how === 'cook');
+    const detail = DISHES.filter(d => d.id === st.detailId)[0] || RECIPES[0] || DISHES[0];
+    const isCook = detail.how === 'cook';
+    const libSorted = RECIPES.slice().sort((a, b) => b.days - a.days)
+      .filter(d => st.filter === 'all'
+        || (st.filter === 'quick' && (d.minutes || 99) <= 15)
+        || (st.filter === 'light' && d.band === 'light')
+        || (st.filter === 'feast' && d.band === 'feast'));
+    const wanted = st.want.indexOf(detail.id) > -1;
+    const r = this.restaurant(st.restId);
+    const rVisits = this.allVisits(r);
+    const rSpend = rVisits.reduce((s, v) => s + v.amt, 0);
+    const wishNow = r.wish && rVisits.length === 0;
+    const totalSpend = RESTAURANTS.reduce((s, x) => s + this.allVisits(x).reduce((t, v) => t + v.amt, 0), 0);
+    const totalVisits = RESTAURANTS.reduce((s, x) => s + this.allVisits(x).length, 0);
+    const rfGroup = st.rfGroup
+      || (CUISINE_GROUPS.filter(g => (st.rform.cuisine || '').indexOf(g.g) === 0)[0] || CUISINE_GROUPS[0]).g;
+    const rfItems = (CUISINE_GROUPS.filter(g => g.g === rfGroup)[0] || CUISINE_GROUPS[0]).items
+      .map(i => rfGroup + ' · ' + i);
+
+    // 一个搜索框管三样：菜谱、餐厅、纯外卖店
+    const kw = (st.q || '').trim().toLowerCase();
+    const hit = function () {
+      const s = Array.prototype.slice.call(arguments).filter(Boolean).join(' ').toLowerCase();
+      return s.indexOf(kw) > -1;
+    };
+    const restFiltered = RESTAURANTS.filter(x => {
+      const vs = this.allVisits(x);
+      if (!this.inCuisineGroup(x.cuisine, st.restCuisine)) return false;
+      if (kw && !hit(x.cn, x.en, x.cuisine, x.city, x.deliveryOnly ? '外卖' : '堂食')) return false;
+      if (st.restFilter === 'wish') return x.wish && vs.length === 0;
+      if (st.restFilter === 'visited') return vs.length > 0;
+      if (st.restFilter === 'delivery') return x.delivery;
+      if (st.restFilter === 'deliveryOnly') return x.deliveryOnly;
+      return true;
+    });
+    const dishMetaOf = d => {
+      const where = d.how === 'cook' ? '自己做 · ' + d.minutes + ' 分钟'
+        : d.how === 'order' ? '点外卖 · ' + (d.eta || 30) + ' 分钟送达'
+        : '出去吃 · ' + (d.travel >= 999 ? '需要出差' : (d.travel || 0) + ' 分钟');
+      return this.money(d.cost) + ' · ' + where;
+    };
+    const searchRows = !kw ? [] : DISHES
+      .filter(d => hit(d.cn, d.en, (d.ing || []).join(' '), (d.tags || []).join(' '), (d.notes || []).join(' '),
+        d.how === 'cook' ? '菜谱 自己做' : d.how === 'order' ? '外卖' : '出去吃'))
+      .map(d => ({
+        cn: d.cn,
+        kind: d.how === 'cook' ? '菜谱' : d.how === 'order' ? '外卖菜' : '堂食菜',
+        kindBg: '#f2c572', kindFg: '#7a4413',
+        meta: dishMetaOf(d),
+        gapLabel: d.days + ' 天\n没吃',
+        gapColor: d.days >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
+        onOpen: () => this.go('detail', { detailId: d.id })
+      }))
+      .concat(RESTAURANTS
+        .filter(x => hit(x.cn, x.en, x.cuisine, x.city, x.deliveryOnly ? '外卖' : '堂食'))
+        .map(x => {
+          const vs = this.allVisits(x);
+          return {
+            cn: x.cn,
+            kind: x.deliveryOnly ? '纯外卖' : '餐厅',
+            kindBg: x.deliveryOnly ? '#eff3e4' : '#f6e0cc',
+            kindFg: x.deliveryOnly ? '#56633f' : '#8c491a',
+            meta: x.cuisine + ' · 人均 ' + this.money(x.avg) + (x.city ? ' · ' + x.city : ''),
+            gapLabel: vs.length ? '去过\n' + vs.length + ' 次' : '还没\n去过',
+            gapColor: vs.length ? 'rgba(50,40,28,.4)' : '#8fa073',
+            onOpen: () => this.go('restDetail', { restId: x.id })
+          };
+        }));
+    const dishMeta = d => {
+      const where = d.how === 'cook' ? '自己做 · ' + d.minutes + ' 分钟'
+        : d.how === 'order' ? '点外卖 · ' + d.eta + ' 分钟送达'
+        : '出去吃 · ' + (d.travel >= 999 ? '需要出差' : d.travel + ' 分钟');
+      return this.money(d.cost) + ' · ' + where;
+    };
+    const altCur = CUR[(st.cur + 1) % CUR.length];
+    const fgbp = st.form.amt / CUR[st.cur].rate;
+
+    const cloudOn = !!(window.CloudSync && window.CloudSync.configured());
+    const locked = cloudOn && st.authReady && !st.authUser;
+    const at = s => !locked && st.screen === s;
+    const myName = this.nameOf(this.meWho()), theirName = this.nameOf(this.otherWho());
+
+    // 我们一起：两个人的打卡合起来算
+    const allV = [];
+    RESTAURANTS.forEach(r => this.allVisits(r).forEach(v => allV.push(Object.assign({ rest: r }, v))));
+    const spendAll = allV.reduce((s, v) => s + v.amt, 0);
+    const mySpend = allV.filter(v => (v.by || 'cai') === this.meWho()).reduce((s, v) => s + v.amt, 0);
+    const togetherRecs = Object.keys(RECORDS).reduce((n, d) =>
+      n + (RECORDS[d] || []).filter(it => it.together).length, 0);
+    const favCount = {};
+    allV.forEach(v => { favCount[v.rest.id] = (favCount[v.rest.id] || 0) + 1; });
+    const favId = Object.keys(favCount).sort((a, b) => favCount[b] - favCount[a])[0];
+    const favRest = favId ? this.restaurant(favId) : null;
+
+    return {
+      phoneW: 402, phoneH: 874,
+      locked: locked, unlocked: !locked,
+      loginEmail: st.loginEmail, loginPw: st.loginPw, loginErr: st.loginErr,
+      setLoginEmail: e => this.setState({ loginEmail: e.target.value, loginErr: '' }),
+      setLoginPw: e => this.setState({ loginPw: e.target.value, loginErr: '' }),
+      loginLabel: st.loggingIn ? '正在登录…' : '进来吃饭',
+      doLogin: () => this.doLogin(),
+      whoOptions: ['cai', 'guo'].map(w => ({
+        label: WHO_NAME[w], onPick: () => this.setState({ who: w, loginErr: '' }),
+        bg: st.who === w ? WHO_COLOR[w] : '#f6ecd8',
+        fg: st.who === w ? '#fdf8ee' : 'rgba(50,40,28,.55)'
+      })),
+      myName: myName, theirName: theirName,
+      accountLine: st.authUser ? (myName + ' · ' + (st.authUser.email || '')) : '还没登录',
+      signedIn: !!st.authUser,
+      doLogout: () => this.doLogout(),
+      liveLabel: st.cloud.live ? '实时推送开着' : '实时推送没开',
+      toasts: st.toasts,
+
+      usTogether: togetherRecs,
+      usSpend: this.money(spendAll),
+      usEach: this.money(spendAll / 2),
+      usMine: myName + ' 记了 ' + this.money(mySpend),
+      usFav: favRest ? favRest.cn + ' · ' + favCount[favId] + ' 次' : '还没有常去的',
+
+      atHome: at('home'), atQuestion: at('question'),
+      atThinking: at('thinking'), atResult: at('result'),
+      atLibrary: at('library'), atDetail: at('detail'),
+      atRest: at('rest'), atRestDetail: at('restDetail'),
+      atCheckin: at('checkin'), atMap: at('map'),
+      atSettings: at('settings'),
+      atRestForm: at('restForm'), atDishForm: at('dishForm'),
+
+      mapPins: JSON.stringify(RESTAURANTS.filter(r => r.geo && !r.deliveryOnly).map(r => {
+        const vs = this.allVisits(r);
+        return { cn: r.cn, sub: r.city, lat: r.geo[0], lon: r.geo[1], visits: vs.length, wish: r.wish && vs.length === 0 };
+      })),
+      locLabel: st.locState === 'on' ? '已按你的定位算路程'
+        : st.locState === 'asking' ? '正在找你在哪儿…'
+        : st.locState === 'denied' ? '没拿到定位，用的是店里存的时间'
+        : '用店里存的时间',
+      locOn: st.locState === 'on',
+      locDot: st.locState === 'on' ? '#8fa073' : st.locState === 'asking' ? '#ecb75e' : 'rgba(50,40,28,.22)',
+      askLocate: () => this.locate(),
+      curName: CUR[st.cur].code,
+      todayLabel: (TODAY.d < 10 ? '0' : '') + TODAY.d + '.' + (TODAY.m < 10 ? '0' : '') + TODAY.m,
+      greeting: (h => h < 5 ? '还没睡呀 · LATE' : h < 11 ? '早上好 · MORNING' : h < 14 ? '中午好 · NOON'
+        : h < 18 ? '下午好 · AFTERNOON' : '晚上好 · EVENING')(new Date().getHours()),
+      pushPins: e => {
+        const f = e.target;
+        try { f.contentWindow.postMessage({ type: 'pins', pins: JSON.parse(f.dataset.pins) }, '*'); } catch (err) {}
+      },
+
+      rf: st.rform,
+      rfTitle: st.editingRest ? '改一下这家店' : '加一家店',
+      rfSetCuisine: e => this.patchRForm({ cuisine: e.target.value }),
+      rfCuisineNow: st.rform.cuisine,
+      rfGroups: CUISINE_GROUPS.map(g => ({
+        label: g.g, onPick: () => this.setState({ rfGroup: g.g }),
+        bg: rfGroup === g.g ? '#8fa073' : '#f6ecd8',
+        fg: rfGroup === g.g ? '#fdf8ee' : 'rgba(50,40,28,.55)'
+      })),
+      rfCuisines: rfItems.map(c => ({
+        label: c.split(' · ')[1] || c, onPick: () => this.patchRForm({ cuisine: c }),
+        bg: st.rform.cuisine === c ? '#c67139' : '#f6ecd8',
+        fg: st.rform.cuisine === c ? '#fdf8ee' : 'rgba(50,40,28,.62)'
+      })),
+      rfLat: st.rform.lat == null ? 53.4808 : st.rform.lat,
+      rfLon: st.rform.lon == null ? -2.2426 : st.rform.lon,
+      rfSetName: e => this.patchRForm({ cn: e.target.value }),
+      rfSetEn: e => this.patchRForm({ en: e.target.value }),
+      rfSetCity: e => this.patchRForm({ city: e.target.value }),
+      rfSetAvg: e => this.patchRForm({ avg: e.target.value }),
+      rfToggleDelivery: () => this.patchRForm({ delivery: !st.rform.delivery }),
+      rfToggleOnly: () => this.patchRForm({ deliveryOnly: !st.rform.deliveryOnly, delivery: true }),
+      rfDeliveryBg: st.rform.delivery ? '#8fa073' : '#f6ecd8',
+      rfDeliveryFg: st.rform.delivery ? '#fdf8ee' : 'rgba(50,40,28,.55)',
+      rfOnlyBg: st.rform.deliveryOnly ? '#8fa073' : '#f6ecd8',
+      rfOnlyFg: st.rform.deliveryOnly ? '#fdf8ee' : 'rgba(50,40,28,.55)',
+      rfSlot: 'rest-photo-' + (st.editingRest || 'new'),
+      saveRest: () => this.saveRest(),
+      editRest: () => this.openRestForm(st.restId),
+      newRest: () => this.openRestForm(null),
+      rfCanDelete: !!st.editingRest,
+
+      df: st.dform,
+      dfTitle: st.editingDish ? '改一下这道菜' : '加一道菜',
+      dfHows: [{ v: 'cook', label: '自己做' }, { v: 'order', label: '点外卖' }, { v: 'out', label: '出去吃' }].map(h => ({
+        label: h.label, onPick: () => this.patchDForm({ how: h.v }),
+        bg: st.dform.how === h.v ? '#c67139' : '#f6ecd8',
+        fg: st.dform.how === h.v ? '#fdf8ee' : 'rgba(50,40,28,.62)'
+      })),
+      dfIsCook: true,
+      dfMinsLabel: '做多久（分钟）',
+      dfSetName: e => this.patchDForm({ cn: e.target.value }),
+      dfSetEn: e => this.patchDForm({ en: e.target.value }),
+      dfSetCost: e => this.patchDForm({ cost: e.target.value }),
+      dfSetKcal: e => this.patchDForm({ kcal: e.target.value }),
+      dfSetMins: e => this.patchDForm({ mins: e.target.value }),
+      dfSetTimes: e => this.patchDForm({ times: e.target.value }),
+      dfSetIng: e => this.patchDForm({ ing: e.target.value }),
+      dfSetRecipe: e => this.patchDForm({ recipe: e.target.value }),
+      dfSetLink: e => this.patchDForm({ link: e.target.value }),
+      dfSetNote: e => this.patchDForm({ note: e.target.value }),
+      dfSetTags: e => this.patchDForm({ tags: e.target.value }),
+      dfSlotDish: 'dish-photo-' + (st.editingDish || 'new'),
+      dfSlotRecipe: 'dish-recipe-' + (st.editingDish || 'new'),
+      saveDish: () => this.saveDish(),
+      editDish: () => this.openDishForm(st.detailId),
+      newDish: () => this.openDishForm(null),
+      dfCanDelete: !!st.editingDish,
+
+      confirmDel: st.confirmDel,
+      askDelete: () => this.setState({ confirmDel: true }),
+      cancelDelete: () => this.setState({ confirmDel: false }),
+      doDeleteRest: () => this.deleteRest(),
+      doDeleteDish: () => this.deleteDish(),
+      atDiary: at('diary'), atWant: at('want'),
+      showTabs: !locked && st.tabsOpen,
+      // 深夜的臭翔闭着眼睛
+      homeMascot: st.sayState || (st.justLogged ? 'checkin'
+        : (new Date().getHours() >= 22 || new Date().getHours() < 6) ? 'calm' : 'idle'),
+      saying: st.say,
+      tapMascot: () => this.tapMascot(),
+      startDecide: () => this.go('question', { qi: 0, answers: {}, tabsOpen: false }),
+      openTabs: () => this.setState({ tabsOpen: !st.tabsOpen }),
+      goHome: () => this.go('home', { justLogged: false }),
+      goBack: () => this.back(),
+      goLibrary: () => this.go('library'),
+      goRest: () => this.go('rest'),
+      goRestDetail: () => this.go('restDetail'),
+      goMap: () => this.go('map'),
+      goSettings: () => this.go('settings'),
+
+      qTitle: q.cn,
+      progress: (st.qi + 1) + ' / 3',
+      pct: Math.round(((st.qi + 1) / 3) * 100) + '%',
+      qOpts: q.opts.map(o => ({ cn: o.cn, en: o.en, onSelect: () => this.answer(q.key, o.v) })),
+
+      pick: pick,
+      pickMeta: pickIsRest ? pick.ref.cuisine + ' · 人均 ' + this.money(pick.ref.avg)
+        : pick.ref ? dishMeta(pick.ref) : '还没有可选的',
+      pickSlot: (pickIsRest ? 'rest-photo-' : 'pick-') + pick.id,
+      compromise: compromise, hasCompromise: compromise !== '',
+      swapPick: () => this.setState({ pickIdx: st.pickIdx + 1 }),
+      onlyOne: order.length <= 1,
+      swapLabel: order.length <= 1 ? '只有这一个符合' : '换一个',
+      swapOpacity: order.length <= 1 ? 0.45 : 1,
+      pickWanted: st.want.indexOf(pick.id) > -1,
+      eatThisLabel: pickIsRest ? '就去这家' : '就吃这个',
+      eatThis: () => {
+        if (pickIsRest) return this.go('restDetail', { restId: pick.id });
+        this.go('diary', { justLogged: true });
+      },
+
+      q: st.q,
+      setQ: e => this.setState({ q: e.target.value }),
+      clearQ: () => this.setState({ q: '' }),
+      hasQ: !!kw,
+      searchHint: kw ? '在菜谱、餐厅、外卖店里一起找' : '',
+      libCountLabel: kw ? searchRows.length + ' 条结果' : RECIPES.length + ' 道菜谱',
+      libFilters: FILTERS.map(f => ({
+        label: f.label, onPick: () => this.setState({ filter: f.v }),
+        bg: st.filter === f.v ? '#c67139' : '#f6ecd8',
+        fg: st.filter === f.v ? '#fdf8ee' : 'rgba(50,40,28,.6)'
+      })),
+      libList: kw ? searchRows : libSorted.map(d => ({
+        cn: d.cn, kind: '菜谱', kindBg: '#f2c572', kindFg: '#7a4413',
+        meta: dishMeta(d),
+        gapLabel: d.days + ' 天\n没吃',
+        gapColor: d.days >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
+        onOpen: () => this.go('detail', { detailId: d.id })
+      })),
+      libEmpty: !!kw && !searchRows.length,
+
+      detail: detail, detailMeta: dishMeta(detail), isCook: isCook,
+      dishSlot: 'dish-' + detail.id,
+      dishShots: this.gallery('dish-' + detail.id + '-p',
+        ['dish-' + detail.id + '-a', 'dish-' + detail.id + '-b', 'dish-' + detail.id + '-c'], 6),
+      detailIng: detail.ing || [], detailRecipe: detail.recipe || '还没存菜谱', detailDates: detail.dates || [],
+      detailStats: isCook
+        ? [{ k: '吃过', v: detail.times + ' 次' }, { k: '上次', v: detail.days + ' 天前' },
+           { k: '热量 / 份', v: detail.kcal ? detail.kcal + ' kcal' : '还没填' },
+           { k: '耗时 · 花费', v: (detail.minutes || 0) + '′ · ' + this.money(detail.cost) }]
+        : [{ k: '吃过', v: detail.times + ' 次' }, { k: '上次', v: detail.days + ' 天前' },
+           { k: '你的评分', v: detail.score.toFixed(1) }, { k: '一次花费', v: this.money(detail.cost) }],
+      wantLabel: wanted ? '已在想吃清单' : '想吃',
+      addWant: () => this.toggleWant(detail.id),
+      logDish: () => this.go('diary', { justLogged: true }),
+
+      restSpend: this.money(totalSpend), restVisits: totalVisits,
+      restCuisines: REST_CUISINES.map(c => ({
+        label: c.label, onPick: () => this.setState({ restCuisine: c.v }),
+        bg: st.restCuisine === c.v ? '#8fa073' : 'transparent',
+        border: st.restCuisine === c.v ? '1.5px solid #8fa073' : '1.5px solid rgba(50,40,28,.16)',
+        fg: st.restCuisine === c.v ? '#fdf8ee' : 'rgba(50,40,28,.55)'
+      })),
+      restFilters: REST_FILTERS.map(f => ({
+        label: f.label, onPick: () => this.setState({ restFilter: f.v }),
+        bg: st.restFilter === f.v ? '#c67139' : '#f6ecd8',
+        fg: st.restFilter === f.v ? '#fdf8ee' : 'rgba(50,40,28,.6)'
+      })),
+      restList: restFiltered.map(x => {
+        const vs = this.allVisits(x);
+        const wish = x.wish && vs.length === 0;
+        return {
+          cn: x.cn,
+          status: wish ? '种草中' : '已打卡 ' + vs.length + ' 次',
+          statusColor: wish ? '#8fa073' : '#c67139',
+          line: x.cuisine + ' · ' + this.travelLine(x) + ' · 人均 ' + this.money(x.avg),
+          chips: [this.bandOf(x.avg)]
+            .concat(x.deliveryOnly ? ['只做外卖'] : x.delivery ? ['可外卖'] : ['只堂食'])
+            .concat(x.travel >= 999 ? ['要坐飞机'] : x.travel > 0 ? [x.travel + ' 分钟'] : [])
+            .concat(vs.length ? ['花了 ' + this.money(vs.reduce((s, v) => s + v.amt, 0))] : []),
+          onOpen: () => this.go('restDetail', { restId: x.id })
+        };
+      }),
+
+      rest: r,
+      restLine: r.cuisine + ' · ' + r.city + ' · ' + this.travelLine(r),
+      restDishes: this.dishesOf(r.id).map(d => ({
+        cn: d.cn, meta: dishMeta(d),
+        onOpen: () => this.go('detail', { detailId: d.id })
+      })),
+      restNoDishes: this.dishesOf(r.id).length === 0,
+      restChips: [this.bandOf(r.avg) + ' · 人均 ' + this.money(r.avg)]
+        .concat(r.deliveryOnly ? ['只做外卖'] : r.delivery ? ['堂食 / 外卖都行'] : ['只堂食'])
+        .concat(r.travel >= 999 ? ['要坐飞机'] : r.travel > 0 ? ['距离 ' + r.travel + ' 分钟'] : ['外卖送达']),
+      restStats: [
+        { k: '打卡次数', v: rVisits.length + ' 次' },
+        { k: '在这家花了', v: this.money(rSpend) },
+        { k: '上次', v: rVisits.length ? rVisits[0].d : '还没去' },
+        { k: '单次平均', v: rVisits.length ? this.money(rSpend / rVisits.length) : '—' }
+      ],
+      restSlotA: 'rest-' + r.id + '-hero',
+      restShots: this.gallery('rest-' + r.id + '-p',
+        ['rest-' + r.id + '-1', 'rest-' + r.id + '-2', 'rest-' + r.id + '-3'], 6),
+      restCheckinShots: this.checkinGallery(r.id, 60),
+      restVisitCount: rVisits.length + ' 笔',
+      restNoVisit: rVisits.length === 0,
+      restVisitList: rVisits.map(v => ({ d: v.d, mode: v.mode, amt: this.money(v.amt), note: v.note })),
+      wishLabel: wishNow ? '标成已打卡' : '移回种草',
+      toggleWish: () => this.go('checkin'),
+      openCheckin: () => this.go('checkin', { form: Object.assign({}, st.form, { mode: r.deliveryOnly ? '外卖' : '堂食', amt: Math.round(r.avg * CUR[st.cur].rate) }) }),
+
+      formDate: this.formDateLabel(),
+      dayMinus: () => this.patchForm({ dayOffset: st.form.dayOffset - 1 }),
+      dayPlus: () => this.patchForm({ dayOffset: st.form.dayOffset + 1 }),
+      formModes: ['堂食', '外卖'].map(m => {
+        const off = m === '堂食' && r.deliveryOnly;
+        const on = st.form.mode === m && !off;
+        return {
+          label: m, disabled: off, opacity: off ? 0.4 : 1,
+          bg: on ? '#c67139' : '#f6ecd8', fg: on ? '#fdf8ee' : '#3a2617',
+          onPick: () => { if (!off) this.patchForm({ mode: m }); }
+        };
+      }),
+      curCode: CUR[st.cur].code,
+      formAmount: CUR[st.cur].sym + st.form.amt,
+      formAmountAlt: altCur.sym + (altCur.dp === 0 ? Math.round(fgbp * altCur.rate) : (fgbp * altCur.rate).toFixed(2)) + ' ' + altCur.code,
+      amtMinus: () => this.patchForm({ amt: Math.max(0, st.form.amt - (CUR[st.cur].dp === 0 ? 10 : 1)) }),
+      amtPlus: () => this.patchForm({ amt: st.form.amt + (CUR[st.cur].dp === 0 ? 10 : 1) }),
+      formShots: this.gallery('checkin-' + r.id + '-' + st.form.dayOffset + '-p',
+        ['checkin-' + r.id + '-1', 'checkin-' + r.id + '-2'], 20),
+      formNote: st.form.note,
+      noteChips: NOTE_CHIPS.map(n => ({ label: n, onPick: () => this.patchForm({ note: n }) })),
+      saveCheckin: () => this.saveCheckin(),
+      eaters: ['cai', 'guo'].map(w => ({
+        label: WHO_NAME[w], onPick: () => this.patchForm({ by: w }),
+        bg: (st.form.by || this.meWho()) === w ? WHO_COLOR[w] : '#f6ecd8',
+        fg: (st.form.by || this.meWho()) === w ? '#fdf8ee' : 'rgba(50,40,28,.55)'
+      })),
+      togetherOn: !!st.form.together,
+      togetherBg: st.form.together ? '#f2c572' : '#f6ecd8',
+      togetherFg: st.form.together ? '#7a4413' : 'rgba(50,40,28,.5)',
+      togetherKnob: st.form.together ? 'translateX(22px)' : 'none',
+      toggleTogether: () => this.patchForm({ together: !st.form.together }),
+
+      cloudDot: { online: '#8fa073', connecting: '#ecb75e', offline: '#c67139', error: '#b2452d' }[st.cloud.status] || 'rgba(50,40,28,.22)',
+      cloudMessage: st.cloud.message,
+      cloudSynced: !!st.cloud.lastSync,
+      cloudTime: st.cloud.lastSync ? new Date(st.cloud.lastSync).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+      cloudOpen: st.cloudOpen,
+      cloudToggleLabel: st.cloudOpen ? '收起' : (st.cloud.status === 'off' ? '去连接' : '设置'),
+      toggleCloud: () => this.setState({ cloudOpen: !st.cloudOpen }),
+      cloudUrl: st.cloudUrl, cloudKey: st.cloudKey,
+      setCloudUrl: e => this.setState({ cloudUrl: e.target.value }),
+      setCloudKey: e => this.setState({ cloudKey: e.target.value }),
+      connectCloud: () => this.connectCloud(),
+      disconnectCloud: () => { window.CloudSync.disconnect(); this.setState({ cloudUrl: '', cloudKey: '' }); },
+      syncNow: () => this.cloudSync(),
+      codeLabel: st.codeCopied ? '连接码复制好了' : '复制连接码',
+      copyCode: () => {
+        const code = window.CloudSync.code();
+        if (!code) return this.setState({ backupMsg: '先把地址和 key 填上再复制' });
+        navigator.clipboard.writeText(code).then(() => {
+          this.setState({ codeCopied: true });
+          setTimeout(() => this.setState({ codeCopied: false }), 1800);
+        });
+      },
+      pasteCode: async () => {
+        try {
+          const txt = await navigator.clipboard.readText();
+          const c = window.CloudSync.applyCode(txt);
+          this.setState({ cloudUrl: c.url, cloudKey: c.key, backupMsg: '连上了，登录一下就好' });
+          this.cloudSync();
+        } catch (e) {
+          this.setState({ backupMsg: '粘不进来：' + (e.message || '剪贴板读不了，手动填也行') });
+        }
+      },
+      sqlOpen: st.sqlOpen,
+      sqlToggleLabel: st.sqlOpen ? '收起建表 SQL' : '第一次用？先跑这段 SQL',
+      toggleSQL: () => this.setState({ sqlOpen: !st.sqlOpen }),
+      setupSQL: window.CloudSync ? window.CloudSync.setupSQL : '',
+      copyLabel: st.copied ? '复制好了' : '复制 SQL',
+      copySQL: () => {
+        navigator.clipboard.writeText(window.CloudSync.setupSQL).then(() => {
+          this.setState({ copied: true });
+          setTimeout(() => this.setState({ copied: false }), 1800);
+        });
+      },
+
+      doBackup: () => this.backupNow(),
+      pickRestore: () => { if (this.restoreEl) this.restoreEl.click(); },
+      restoreRef: el => { this.restoreEl = el; },
+      onRestoreFile: e => { const f = e.target.files[0]; e.target.value = ''; this.restoreFrom(f); },
+      backupMsg: st.backupMsg,
+      useData: st.usage ? st.usage.dataLabel : '…',
+      usePhotos: st.usage ? st.usage.photoCount + ' 张 · ' + st.usage.photoLabel : '…',
+      savedLabel: st.savedAt ? '已自动存于 ' + new Date(st.savedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '自动保存已开',
+
+      curOptions: CUR.map((c, i) => ({
+        label: c.code + ' ' + c.sym, onPick: () => this.setState({ cur: i }),
+        bg: st.cur === i ? '#c67139' : '#f6ecd8',
+        fg: st.cur === i ? '#fdf8ee' : 'rgba(50,40,28,.6)'
+      })),
+      rateLine: '1 GBP = ' + CUR[1].rate + ' CNY = ' + CUR[2].rate + ' USD = ' + CUR[4].rate + ' JPY',
+      bandRows: [
+        { label: '低 / 中 分界', hint: '人均低于这个数算「人均低」', value: this.money(st.lowBand),
+          onMinus: () => this.setState({ lowBand: Math.max(3, st.lowBand - 1) }),
+          onPlus: () => this.setState({ lowBand: Math.min(st.highBand - 1, st.lowBand + 1) }) },
+        { label: '中 / 高 分界', hint: '超过这个数算「人均高」', value: this.money(st.highBand),
+          onMinus: () => this.setState({ highBand: Math.max(st.lowBand + 1, st.highBand - 1) }),
+          onPlus: () => this.setState({ highBand: st.highBand + 1 }) }
+      ],
+      bandLegend: [
+        { k: '人均低', v: '≤ ' + this.money(st.lowBand) },
+        { k: '人均中', v: this.money(st.lowBand) + ' – ' + this.money(st.highBand) },
+        { k: '人均高', v: '> ' + this.money(st.highBand) }
+      ],
+
+      streak: 6,
+      week: weekCells,
+      wdNames: WDN,
+      monthCells: monthCells,
+      calLabel: st.calY + '年' + st.calM + '月',
+      calMonth: st.calMode === 'month' && !st.calPickOpen,
+      calChevron: st.calMode === 'month' ? 'rotate(180deg)' : 'none',
+      calToggleLabel: st.calMode === 'month' ? '收起月历' : '展开整月日历',
+      calToggle: () => this.setState({ calMode: st.calMode === 'month' ? 'week' : 'month', calPickOpen: false }),
+      calTitleTap: () => this.setState({ calPickOpen: !st.calPickOpen, pickY: st.calY, calMode: st.calPickOpen ? st.calMode : 'month' }),
+      calToday: () => this.pickDay(TODAY.y, TODAY.m, TODAY.d),
+      calPrev: () => this.stepMonth(-1),
+      calNext: () => this.stepMonth(1),
+      calPickOpen: st.calPickOpen,
+      pickYear: st.pickY,
+      yearPrev: () => this.setState({ pickY: st.pickY - 1 }),
+      yearNext: () => this.setState({ pickY: st.pickY + 1 }),
+      pickMonths: MONTHS.map(m => {
+        const on = m === st.calM && st.pickY === st.calY;
+        return {
+          label: m + '月',
+          bg: on ? '#c67139' : '#fdf8ee',
+          fg: on ? '#fdf8ee' : 'rgba(50,40,28,.62)',
+          onPick: () => this.setState({ calY: st.pickY, calM: m, calPickOpen: false, calMode: 'month' })
+        };
+      }),
+      selLabel: selLabel,
+      selItems: selItems,
+      selEmpty: selItems.length === 0,
+      selEmptyText: selFuture ? '这天还没计划吃什么' : '这天没有记录',
+      logLabel: selFuture ? '计划一顿' : '记一笔',
+      wantCount: st.want.length,
+      wantEmpty: st.want.length === 0,
+      wantList: st.want.map(id => {
+        const d = DISHES.filter(x => x.id === id)[0];
+        return { cn: d.cn, note: dishMeta(d), onRemove: () => this.toggleWant(id) };
+      }),
+      tabs: TABS.map(t => ({
+        cn: t.cn, onPick: () => this.go(t.id),
+        bg: st.screen === t.id ? '#f6ecd8' : 'transparent',
+        fg: st.screen === t.id ? '#8c491a' : 'rgba(50,40,28,.5)',
+        dot: st.screen === t.id ? '#c67139' : 'transparent'
+      })),
+      notesList: NOTES
+    };
+  }
+}
+</script>
+</body>
+</html>
