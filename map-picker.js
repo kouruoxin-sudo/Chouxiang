@@ -56,8 +56,8 @@
       loadLeaflet().then(L => {
         const el = this.querySelector('.mp-map');
         const map = L.map(el, { zoomControl: true }).setView(start, isFinite(lat0) ? 14 : 11);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OSM &middot; CARTO'
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '&copy; OpenStreetMap'
         }).addTo(map);
         el.querySelectorAll('.leaflet-tile-pane').forEach(p => {
           p.style.filter = 'sepia(.42) saturate(.72) brightness(1.06) contrast(.9)';

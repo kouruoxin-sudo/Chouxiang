@@ -1844,12 +1844,20 @@ class Component extends DCLogic {
 
   locate() {
     if (!navigator.geolocation) return this.setState({ locState: 'off' });
+    // 非 https 页面浏览器直接拒绝定位，先说清楚原因
+    if (!window.isSecureContext) return this.setState({ locState: 'insecure' });
     this.setState({ locState: 'asking' });
-    navigator.geolocation.getCurrentPosition(
-      p => { this.setState({ here: [p.coords.latitude, p.coords.longitude], locState: 'on' }); this.recalcTravel(); },
-      () => this.setState({ locState: 'denied' }),
-      { timeout: 8000, maximumAge: 600000 }
-    );
+    const ok = p => {
+      this.setState({ here: [p.coords.latitude, p.coords.longitude], locState: 'on' });
+      this.recalcTravel();
+    };
+    // 先粗定位快速拿到结果，再用高精度补一次；失败时区分「拒绝」和「拿不到」
+    navigator.geolocation.getCurrentPosition(ok, err => {
+      if (err.code === 1) return this.setState({ locState: 'denied' });
+      navigator.geolocation.getCurrentPosition(ok,
+        e2 => this.setState({ locState: e2.code === 1 ? 'denied' : 'failed' }),
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
   }
 
   // 有定位就用真实距离覆盖手填的 travel，没有就保留原值
@@ -2225,8 +2233,11 @@ class Component extends DCLogic {
       })),
       locLabel: st.locState === 'on' ? '已按你的定位算路程'
         : st.locState === 'asking' ? '正在找你在哪儿…'
-        : st.locState === 'denied' ? '没拿到定位，用的是店里存的时间'
-        : '用店里存的时间',
+        : st.locState === 'denied' ? '定位被拒了 · 去浏览器设置里允许，再点一下'
+        : st.locState === 'failed' ? '一时没搜到信号 · 点一下再试'
+        : st.locState === 'insecure' ? '这个网址不是 https，浏览器不给定位'
+        : st.locState === 'off' ? '这个浏览器不支持定位'
+        : '点一下，用你的定位算路程',
       locOn: st.locState === 'on',
       locDot: st.locState === 'on' ? '#8fa073' : st.locState === 'asking' ? '#ecb75e' : 'rgba(50,40,28,.22)',
       askLocate: () => this.locate(),
