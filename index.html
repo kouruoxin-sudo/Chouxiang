@@ -19,20 +19,35 @@
 <script src="./cloud-config.js"></script>
 <script src="./supabase-sync.js"></script>
 <style>
+html{-webkit-text-size-adjust:100%}
 body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-/* 手机上（或加到主屏后）脱掉预览用的手机外壳，直接铺满屏幕 */
+/* 全 app 共用的一套边距变量：桌面预览留灵动岛，真机上贴浏览器视口顶部 */
+:root{
+  --cx-top:70px; --cx-top-lg:96px; --cx-top-md:76px; --cx-toast:52px;
+  --cx-bot:108px; --cx-navpad:30px;
+  --cx-greet:64px; --cx-masctop:104px; --cx-mascot:372px; --cx-hero:492px;
+  --cx-photo-btn:66px; --cx-photo-btn-lg:62px;
+}
 @media (max-width:720px){
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   body{background:#fdf8ee}
-  .cx-shell{padding:0!important;gap:0!important}
+  .cx-shell{padding:0!important;gap:0!important;flex-wrap:nowrap!important}
+  .cx-shell>div{gap:0!important;width:100%}
   .cx-label{display:none!important}
-  [data-om-starter="ios-frame"]{width:100vw!important;height:100dvh!important;border-radius:0!important;
-    box-shadow:none!important;background:#fdf8ee!important}
-  [data-om-starter="ios-frame"]>div:not(:has(>div[style*="min-height"])){}
-  [data-om-starter="ios-frame"]>div[style*="126px"],
-  [data-om-starter="ios-frame"]>div[style*="width: 126px"],
-  [data-om-starter="ios-frame"]>div[style*="z-index: 50"],
-  [data-om-starter="ios-frame"]>div[style*="z-index: 10"],
-  [data-om-starter="ios-frame"]>div[style*="z-index: 60"]{display:none!important}
+  :root{
+    --cx-top:calc(env(safe-area-inset-top,0px) + 18px);
+    --cx-top-lg:calc(env(safe-area-inset-top,0px) + 26px);
+    --cx-top-md:calc(env(safe-area-inset-top,0px) + 20px);
+    --cx-toast:calc(env(safe-area-inset-top,0px) + 10px);
+    --cx-bot:calc(env(safe-area-inset-bottom,0px) + 100px);
+    --cx-navpad:calc(env(safe-area-inset-bottom,0px) + 14px);
+    --cx-greet:calc(env(safe-area-inset-top,0px) + 14px);
+    --cx-masctop:calc(env(safe-area-inset-top,0px) + 46px);
+    --cx-mascot:min(372px,34dvh);
+    --cx-hero:clamp(316px,44dvh,492px);
+    --cx-photo-btn:calc(env(safe-area-inset-top,0px) + 16px);
+    --cx-photo-btn-lg:calc(env(safe-area-inset-top,0px) + 16px);
+  }
 }
 @media (display-mode:standalone){
   .cx-shell{padding:0!important;gap:0!important}
@@ -48,10 +63,10 @@ a{color:#8c491a}a:hover{color:#b2622d}
 <div class="cx-shell" style="padding:44px;display:flex;flex-wrap:wrap;gap:38px;align-items:flex-start">
 <div style="display:flex;flex-direction:column;gap:12px">
 
-<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ phoneW }}" height="{{ phoneH }}" hint-size="402px,874px">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ phoneW }}" height="{{ phoneH }}" bare="{{ phoneBare }}" hint-size="402px,874px">
 <div style="height:100%;min-height:100%;position:relative;background:#fdf8ee;display:flex;flex-direction:column;font-family:Nunito,'Noto Sans SC',sans-serif;overflow:hidden">
 
-<div aria-live="polite" style="position:absolute;top:52px;left:0;right:0;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 18px;pointer-events:none">
+<div aria-live="polite" style="position:absolute;top:var(--cx-toast);left:0;right:0;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 18px;pointer-events:none">
   <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
     <div style="display:flex;align-items:center;gap:11px;max-width:100%;padding:10px 16px 10px 11px;border-radius:999px;background:#fdf8ee;box-shadow:0 12px 28px rgba(120,70,20,.26);animation:ap-pop .32s cubic-bezier(.34,1.56,.64,1) both">
       <span style="width:34px;height:34px;flex:none"><dc-import name="Chouxiang" state="{{ t.mood }}" hint-size="34px,34px"></dc-import></span>
@@ -61,7 +76,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </div>
 
 <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:96px 30px 34px;gap:20px;background:#fdf8ee;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:var(--cx-top-lg) 30px var(--cx-bot);gap:20px;background:#fdf8ee;animation:ap-fade .3s ease both">
   <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
     <span style="width:150px;height:150px"><dc-import name="Chouxiang" state="excited" hint-size="150px,150px"></dc-import></span>
     <h2 style="margin:0;font:400 32px/1.1 'ZCOOL KuaiLe',sans-serif;color:#3a2617;text-align:center">臭翔今天吃什么</h2>
@@ -89,9 +104,9 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atHome }}" hint-placeholder-val="{{ true }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
-  <div style="position:relative;height:492px;background:#ecb75e;border-radius:0 0 52px 52px;overflow:hidden;flex:none">
-    <div style="position:absolute;top:64px;left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(70,44,16,.62)"><span>{{ greeting }}</span><span>{{ todayLabel }}</span></div>
-    <button onClick="{{ tapMascot }}" aria-label="敲两下臭翔，他会跟你说话" style="position:absolute;top:104px;left:50%;transform:translateX(-50%);width:372px;height:372px;border:none;background:transparent;padding:0;cursor:pointer"><dc-import name="Chouxiang" state="{{ homeMascot }}" hint-size="372px,372px"></dc-import></button>
+  <div style="position:relative;height:var(--cx-hero);background:#ecb75e;border-radius:0 0 52px 52px;overflow:hidden;flex:none">
+    <div style="position:absolute;top:var(--cx-greet);left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(70,44,16,.62)"><span>{{ greeting }}</span><span>{{ todayLabel }}</span></div>
+    <button onClick="{{ tapMascot }}" aria-label="敲两下臭翔，他会跟你说话" style="position:absolute;top:var(--cx-masctop);left:50%;transform:translateX(-50%);width:var(--cx-mascot);height:var(--cx-mascot);border:none;background:transparent;padding:0;cursor:pointer"><dc-import name="Chouxiang" state="{{ homeMascot }}" hint-size="372px,372px"></dc-import></button>
     <sc-if value="{{ saying }}" hint-placeholder-val="{{ false }}">
       <div role="status" style="position:absolute;bottom:14px;left:50%;z-index:3;max-width:312px;padding:12px 20px 13px;border-radius:26px 26px 26px 9px;background:#fdf8ee;box-shadow:0 10px 22px rgba(120,70,20,.24);font:400 19px/1.28 'ZCOOL KuaiLe',sans-serif;color:#8c491a;text-align:center;animation:ap-pop .34s cubic-bezier(.34,1.56,.64,1) both">{{ saying }}</div>
     </sc-if>
@@ -109,7 +124,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atQuestion }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
-  <div style="background:#ecb75e;padding:76px 28px 28px;border-radius:0 0 52px 52px;display:flex;align-items:center;gap:14px;flex:none">
+  <div style="background:#ecb75e;padding:var(--cx-top-md) 28px 28px;border-radius:0 0 52px 52px;display:flex;align-items:center;gap:14px;flex:none">
     <button onClick="{{ goBack }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:rgba(253,248,238,.78);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#fdf8ee">←</button>
     <div style="flex:1;display:flex;flex-direction:column;gap:9px">
       <span style="font:800 11px/1 Nunito,sans-serif;letter-spacing:.18em;color:rgba(70,44,16,.62)">{{ progress }}</span>
@@ -147,7 +162,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
   <div style="position:relative;height:296px;background:#e9dcc2;border-radius:0 0 52px 52px;flex:none;overflow:hidden">
     <photo-slot id="{{ pickSlot }}" shape="rect" placeholder="拖一张这道菜的照片进来" style="width:100%;height:100%"></photo-slot>
-    <button onClick="{{ goHome }}" aria-label="返回首页" style="position:absolute;top:62px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+    <button onClick="{{ goHome }}" aria-label="返回首页" style="position:absolute;top:var(--cx-photo-btn-lg);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
     <div style="position:absolute;right:10px;bottom:-30px;width:118px;height:118px;pointer-events:none;z-index:2"><dc-import name="Chouxiang" state="success" hint-size="118px,118px"></dc-import></div>
   </div>
   <div style="flex:1;padding:30px 28px 28px;display:flex;flex-direction:column;gap:16px">
@@ -184,7 +199,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atLibrary }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="padding:0 24px;display:flex;flex-direction:column;gap:16px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between">
       <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">菜谱</h2>
@@ -209,7 +224,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       </sc-for>
     </div>
   </div>
-  <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px 8px;display:flex;flex-direction:column;gap:12px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px var(--cx-bot);display:flex;flex-direction:column;gap:12px">
     <sc-for list="{{ libList }}" as="d" hint-placeholder-count="6">
       <button onClick="{{ d.onOpen }}" style="display:flex;align-items:center;gap:14px;text-align:left;padding:12px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
         <span style="width:66px;height:66px;flex:none;border-radius:20px;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)"></span>
@@ -234,11 +249,11 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atDetail }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:24px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="position:relative;height:250px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
     <photo-slot id="{{ dishSlot }}" shape="rect" placeholder="拖照片进来" style="width:100%;height:100%"></photo-slot>
-    <button onClick="{{ editDish }}" style="position:absolute;top:66px;right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
-    <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="position:absolute;top:66px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+    <button onClick="{{ editDish }}" style="position:absolute;top:var(--cx-photo-btn);right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
+    <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="position:absolute;top:var(--cx-photo-btn);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
   </div>
   <div style="padding:24px 28px 0;display:flex;flex-direction:column;gap:18px">
     <div>
@@ -310,7 +325,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atRest }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="padding:0 24px;display:flex;flex-direction:column;gap:15px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between">
       <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">餐厅</h2>
@@ -353,7 +368,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       </sc-for>
     </div>
   </div>
-  <div style="flex:1;min-height:0;overflow:auto;padding:16px 24px 8px;display:flex;flex-direction:column;gap:12px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 24px var(--cx-bot);display:flex;flex-direction:column;gap:12px">
     <sc-for list="{{ restList }}" as="r" hint-placeholder-count="6">
       <button onClick="{{ r.onOpen }}" style="display:flex;flex-direction:column;gap:9px;text-align:left;padding:16px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
         <span style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%">
@@ -373,11 +388,11 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atRestDetail }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:24px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="position:relative;height:230px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
     <photo-slot id="{{ restSlotA }}" shape="rect" placeholder="拖店里的照片进来" style="width:100%;height:100%"></photo-slot>
-    <button onClick="{{ editRest }}" style="position:absolute;top:66px;right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
-    <button onClick="{{ goRest }}" aria-label="返回餐厅列表" style="position:absolute;top:66px;left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
+    <button onClick="{{ editRest }}" style="position:absolute;top:var(--cx-photo-btn);right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
+    <button onClick="{{ goRest }}" aria-label="返回餐厅列表" style="position:absolute;top:var(--cx-photo-btn);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
   </div>
   <div style="padding:22px 28px 0;display:flex;flex-direction:column;gap:18px">
     <div>
@@ -460,7 +475,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atCheckin }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:70px 28px 28px;gap:18px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:var(--cx-top) 28px var(--cx-bot);gap:18px;animation:ap-fade .3s ease both">
   <div style="display:flex;align-items:center;gap:14px">
     <button onClick="{{ goRestDetail }}" aria-label="取消" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
     <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">打卡 · {{ rest.cn }}</h2>
@@ -527,7 +542,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atMap }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
-  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:14px;flex:none">
+  <div style="padding:var(--cx-top) 24px 14px;display:flex;align-items:center;gap:14px;flex:none">
     <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
     <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">打卡地图</h2>
   </div>
@@ -540,7 +555,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atSettings }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:70px 28px 28px;gap:22px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:var(--cx-top) 28px var(--cx-bot);gap:22px;animation:ap-fade .3s ease both">
   <div style="display:flex;align-items:center;gap:14px">
     <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
     <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">设置</h2>
@@ -644,7 +659,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atDiary }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:18px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between">
       <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">饮食记录</h2>
@@ -691,7 +706,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       </div>
     </div>
   </div>
-  <div style="flex:1;min-height:0;overflow:auto;padding:4px 24px 8px;display:flex;flex-direction:column;gap:14px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:4px 24px var(--cx-bot);display:flex;flex-direction:column;gap:14px">
       <sc-if value="{{ calMonth }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:8px;flex:none;animation:ap-drop .28s cubic-bezier(.2,.9,.3,1) both">
         <div style="display:flex;align-items:center;gap:8px">
@@ -768,7 +783,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atWant }}" hint-placeholder-val="{{ false }}">
-<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:70px 0 108px;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="padding:0 24px 8px;display:flex;align-items:flex-end;justify-content:space-between">
     <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">想吃清单</h2>
     <span style="font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ wantCount }} 个</span>
@@ -780,7 +795,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
     <p style="margin:0;font:700 13px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5);text-align:center">在菜库里点「想吃」，我就记住了。</p>
   </div>
   </sc-if>
-  <div style="flex:1;min-height:0;overflow:auto;padding:14px 24px 8px;display:flex;flex-direction:column;gap:12px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:14px 24px var(--cx-bot);display:flex;flex-direction:column;gap:12px">
     <sc-for list="{{ wantList }}" as="w" hint-placeholder-count="3">
       <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:26px;background:#f6ecd8">
         <span style="width:52px;height:52px;flex:none"><dc-import name="Chouxiang" state="excited" hint-size="52px,52px"></dc-import></span>
@@ -796,7 +811,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ false }}">
-<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 14px 30px;background:rgba(253,248,238,.94);border-top:1px solid rgba(50,40,28,.08);border-radius:32px 32px 0 0;display:flex;gap:2px;animation:ap-up .28s cubic-bezier(.2,.9,.25,1) both">
+<div style="position:absolute;left:0;right:0;bottom:0;padding:12px 14px var(--cx-navpad);background:rgba(253,248,238,.94);border-top:1px solid rgba(50,40,28,.08);border-radius:32px 32px 0 0;display:flex;gap:2px;animation:ap-up .28s cubic-bezier(.2,.9,.25,1) both">
   <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
     <button onClick="{{ t.onPick }}" style="flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:none;border-radius:20px;background:{{ t.bg }};cursor:pointer" style-hover="background:#f6ecd8">
       <span style="font:400 15px/1 'ZCOOL KuaiLe',sans-serif;color:{{ t.fg }}">{{ t.cn }}</span>
@@ -808,11 +823,11 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atRestForm }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
-  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
+  <div style="padding:var(--cx-top) 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
     <button onClick="{{ goRest }}" aria-label="返回餐厅" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito,sans-serif;color:#8c491a;cursor:pointer" style-hover="background:#eee0c4">←</button>
     <h2 style="margin:0;flex:1;font:400 28px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ rfTitle }}</h2>
   </div>
-  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px 8px;display:flex;flex-direction:column;gap:16px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px var(--cx-bot);display:flex;flex-direction:column;gap:16px">
     <div style="height:150px;border-radius:26px;overflow:hidden;background:#f6ecd8;flex:none">
       <photo-slot id="{{ rfSlot }}" shape="rect" placeholder="拖一张店里的照片进来" style="width:100%;height:100%"></photo-slot>
     </div>
@@ -873,11 +888,11 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atDishForm }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
-  <div style="padding:70px 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
+  <div style="padding:var(--cx-top) 24px 14px;display:flex;align-items:center;gap:13px;flex:none">
     <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito,sans-serif;color:#8c491a;cursor:pointer" style-hover="background:#eee0c4">←</button>
     <h2 style="margin:0;flex:1;font:400 28px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ dfTitle }}</h2>
   </div>
-  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px 8px;display:flex;flex-direction:column;gap:16px">
+  <div style="flex:1;min-height:0;overflow:auto;padding:2px 24px var(--cx-bot);display:flex;flex-direction:column;gap:16px">
     <div style="display:flex;gap:10px;flex:none">
       <div style="flex:1;height:132px;border-radius:24px;overflow:hidden;background:#f6ecd8">
         <photo-slot id="{{ dfSlotDish }}" shape="rect" placeholder="成品照" style="width:100%;height:100%"></photo-slot>
@@ -1785,6 +1800,12 @@ class Component extends DCLogic {
   }
 
   componentDidMount() {
+    // 真机（窄视口 / 加到主屏）不套手机外壳，直接铺满浏览器视口
+    this.mqPhone = window.matchMedia('(max-width:720px),(display-mode:standalone),(display-mode:fullscreen)');
+    const syncPhone = () => this.setState({ isPhone: this.mqPhone.matches });
+    syncPhone();
+    this.mqPhone.addEventListener('change', syncPhone);
+    this.unsubPhone = () => this.mqPhone.removeEventListener('change', syncPhone);
     RESTAURANTS.forEach(r => { if (!r.geo && GEO[r.id]) r.geo = GEO[r.id]; });
     if (window.AppStore) this.hydrate(window.AppStore.load());
     if (window.PhotoStore) {
@@ -2160,7 +2181,9 @@ class Component extends DCLogic {
     const favRest = favId ? this.restaurant(favId) : null;
 
     return {
-      phoneW: 402, phoneH: 874,
+      phoneW: this.state.isPhone ? '100%' : 402,
+      phoneH: this.state.isPhone ? '100dvh' : 874,
+      phoneBare: !!this.state.isPhone,
       locked: locked, unlocked: !locked,
       loginEmail: st.loginEmail, loginPw: st.loginPw, loginErr: st.loginErr,
       setLoginEmail: e => this.setState({ loginEmail: e.target.value, loginErr: '' }),

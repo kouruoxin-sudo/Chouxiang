@@ -201,8 +201,24 @@ function IOSList({ header, children, dark = false }) {
 // ─────────────────────────────────────────────────────────────
 function IOSDevice({
   children, width = 402, height = 874, dark = false,
-  title, keyboard = false,
+  title, keyboard = false, bare = false,
 }) {
+  if (bare) {
+    // Real phone / narrow viewport: no bezel, no dynamic island, no fake status bar.
+    return (
+      <div data-om-starter="ios-frame" data-bare="true" style={{
+        width: width || '100%', height: height || '100dvh',
+        position: 'relative', overflow: 'hidden',
+        background: dark ? '#000' : 'transparent',
+        WebkitFontSmoothing: 'antialiased',
+      }}>
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</div>
+          {keyboard && <IOSKeyboard dark={dark} />}
+        </div>
+      </div>
+    );
+  }
   return (
     // data-om-starter: inert presence marker — Claude Design's starter-usage
     // probe reads it; it renders nothing. Keep it on this root element.
