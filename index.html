@@ -326,45 +326,47 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atRest }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
-  <div style="padding:0 24px;display:flex;flex-direction:column;gap:15px">
+  <div style="padding:0 24px;display:flex;flex-direction:column;gap:10px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between">
-      <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">餐厅</h2>
+      <h2 style="margin:0;font:400 27px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">餐厅</h2>
       <div style="display:flex;gap:8px">
         <button onClick="{{ newRest }}" style="min-height:38px;padding:0 14px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#b2622d">＋ 加店</button>
         <button onClick="{{ goMap }}" style="min-height:38px;padding:0 15px;border:none;border-radius:999px;background:#eff3e4;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f;cursor:pointer" style-hover="background:#dfe7cd">地图</button>
         <button onClick="{{ goSettings }}" aria-label="设置" style="width:38px;height:38px;border:none;border-radius:999px;background:#f6ecd8;font:700 14px/1 Nunito;color:rgba(50,40,28,.55);cursor:pointer" style-hover="background:#f2c572">⚙</button>
       </div>
     </div>
-    <div style="display:flex;gap:10px">
-      <span style="flex:1;display:flex;flex-direction:column;gap:4px;padding:13px 15px;border-radius:20px;background:#f6ecd8">
-        <span style="font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restSpend }}</span>
-        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">全部餐厅总花费</span>
+    <div style="display:flex;align-items:center;gap:14px;padding:9px 16px;border-radius:20px;background:#f6ecd8">
+      <span style="display:flex;align-items:baseline;gap:6px">
+        <span style="font:400 17px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restSpend }}</span>
+        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">总花费</span>
       </span>
-      <span style="flex:1;display:flex;flex-direction:column;gap:4px;padding:13px 15px;border-radius:20px;background:#f6ecd8">
-        <span style="font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restVisits }} 次</span>
-        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.08em;color:rgba(50,40,28,.5)">累计打卡</span>
+      <span style="width:1px;height:14px;background:rgba(50,40,28,.14)"></span>
+      <span style="display:flex;align-items:baseline;gap:6px">
+        <span style="font:400 17px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ restVisits }} 次</span>
+        <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">累计打卡</span>
       </span>
+      <span style="flex:1"></span>
+      <button onClick="{{ askLocate }}" style="display:flex;align-items:center;gap:7px;text-align:left;border:none;border-radius:999px;background:transparent;padding:2px;cursor:pointer">
+        <span style="width:8px;height:8px;flex:none;border-radius:999px;background:{{ locDot }}"></span>
+        <span style="font:700 10.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ locLabel }}</span>
+      </button>
     </div>
-    <button onClick="{{ askLocate }}" style="display:flex;align-items:center;gap:8px;text-align:left;border:none;border-radius:999px;background:transparent;padding:2px;cursor:pointer">
-      <span style="width:8px;height:8px;flex:none;border-radius:999px;background:{{ locDot }}"></span>
-      <span style="font:700 11px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ locLabel }}</span>
-    </button>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;margin:0 -24px;padding:0 24px">
       <sc-for list="{{ restFilters }}" as="f" hint-placeholder-count="5">
-        <button onClick="{{ f.onPick }}" style="min-height:36px;padding:0 15px;border:none;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ f.label }}</button>
+        <button onClick="{{ f.onPick }}" style="flex:none;min-height:32px;padding:0 14px;border:none;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;white-space:nowrap;cursor:pointer">{{ f.label }}</button>
       </sc-for>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 8px 0 18px;border-radius:999px;background:#f6ecd8">
+    <div style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 8px 0 18px;border-radius:999px;background:#f6ecd8">
       <span style="font:700 15px/1 Nunito;color:rgba(50,40,28,.4)">⌕</span>
       <input value="{{ q }}" onChange="{{ setQ }}" placeholder="搜店名、菜系、城市" style="flex:1;min-width:0;border:none;background:transparent;font:700 13.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
       <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}">
         <button onClick="{{ clearQ }}" aria-label="清空搜索" style="width:34px;height:34px;flex:none;border:none;border-radius:999px;background:#fdf8ee;font:800 12px/1 Nunito;color:#8c491a;cursor:pointer">✕</button>
       </sc-if>
     </div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
-      <span style="font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.38)">菜系</span>
+    <div style="display:flex;gap:7px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;align-items:center;margin:0 -24px;padding:0 24px">
+      <span style="flex:none;font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.38)">菜系</span>
       <sc-for list="{{ restCuisines }}" as="c" hint-placeholder-count="4">
-        <button onClick="{{ c.onPick }}" style="min-height:32px;padding:0 13px;border:{{ c.border }};border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">{{ c.label }}</button>
+        <button onClick="{{ c.onPick }}" style="flex:none;min-height:32px;padding:0 13px;border:{{ c.border }};border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;white-space:nowrap;cursor:pointer">{{ c.label }}</button>
       </sc-for>
     </div>
   </div>
@@ -660,32 +662,33 @@ a{color:#8c491a}a:hover{color:#b2622d}
 
 <sc-if value="{{ atDiary }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--cx-top) 0 var(--cx-bot);animation:ap-fade .3s ease both">
-  <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:18px">
+  <div style="padding:0 24px 10px;display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between">
-      <h2 style="margin:0;font:400 34px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">饮食记录</h2>
+      <h2 style="margin:0;font:400 27px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">饮食记录</h2>
       <span style="display:flex;align-items:center;gap:8px"><span style="width:34px;height:34px"><dc-import name="Chouxiang" state="checkin" hint-size="34px,34px"></dc-import></span><span style="font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;color:#8fa073">连续 {{ streak }} 天</span></span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:11px;padding:16px 18px;border-radius:28px;background:#f6ecd8">
+    <div style="display:flex;flex-direction:column;gap:9px;padding:12px 16px;border-radius:26px;background:#f6ecd8">
       <div style="display:flex;align-items:center;gap:9px">
-        <span style="flex:1;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">我们一起</span>
-        <span style="padding:6px 12px;border-radius:999px;background:#f2c572;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#7a4413">{{ usTogether }} 顿一起吃的</span>
+        <span style="flex:1;font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">我们一起</span>
+        <span style="padding:5px 11px;border-radius:999px;background:#f2c572;font:800 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#7a4413">{{ usTogether }} 顿一起吃的</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px">
-        <span style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:20px;background:#fdf8ee">
-          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.42)">一共花了</span>
-          <span style="font:400 21px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usSpend }}</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="display:flex;align-items:baseline;gap:6px">
+          <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usSpend }}</span>
+          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">一共花了</span>
         </span>
-        <span style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:20px;background:#fdf8ee">
-          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.42)">一人分</span>
-          <span style="font:400 21px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usEach }}</span>
+        <span style="width:1px;height:14px;background:rgba(50,40,28,.14)"></span>
+        <span style="display:flex;align-items:baseline;gap:6px">
+          <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ usEach }}</span>
+          <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">一人分</span>
         </span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:7px">
-        <span style="padding:7px 13px;border-radius:999px;background:#eff3e4;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">最常去 {{ usFav }}</span>
-        <span style="padding:7px 13px;border-radius:999px;background:#fdf8ee;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ usMine }}</span>
+        <span style="padding:6px 12px;border-radius:999px;background:#eff3e4;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">最常去 {{ usFav }}</span>
+        <span style="padding:6px 12px;border-radius:999px;background:#fdf8ee;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ usMine }}</span>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;flex-direction:column;gap:9px">
       <div style="display:flex;align-items:center;gap:8px">
         <button onClick="{{ calTitleTap }}" aria-label="选择年份和月份" style="display:flex;align-items:center;gap:6px;border:none;background:transparent;padding:3px 2px;cursor:pointer;font:400 20px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a"><span>{{ calLabel }}</span><span style="font:800 10px/1 Nunito,sans-serif">▾</span></button>
         <span style="flex:1"></span>
@@ -694,7 +697,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       </div>
       <div style="display:flex;justify-content:space-between;gap:5px">
         <sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
-          <button onClick="{{ d.onPick }}" aria-label="{{ d.aria }}" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:68px;padding:9px 0 8px;border:{{ d.border }};border-radius:20px;background:{{ d.bg }};cursor:pointer">
+          <button onClick="{{ d.onPick }}" aria-label="{{ d.aria }}" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:58px;padding:7px 0 6px;border:{{ d.border }};border-radius:18px;background:{{ d.bg }};cursor:pointer">
             <span style="font:800 10.5px/1 Nunito,sans-serif;color:{{ d.fg2 }}">{{ d.w }}</span>
             <span style="font:400 17px/1 'ZCOOL KuaiLe',sans-serif;color:{{ d.fg }}">{{ d.n }}</span>
             <span style="display:flex;gap:3px;height:7px;align-items:center">
