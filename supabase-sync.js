@@ -274,7 +274,11 @@
     async syncNow(rows, applyRemote) {
       if (!this.configured()) return;
       try {
-        await getClient();
+        const sb = await getClient();
+        // 有会话但模块里还没拿到 user 时（刷新后常见），先补一次
+        if (!me && sb) {
+          try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
+        }
         if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
         const remote = await this.pullRows();
         if (remote && applyRemote) applyRemote(remote);
@@ -332,6 +336,9 @@
       const wr = await sb.from(TABLE).upsert(probe, { onConflict: 'key' });
       if (wr.error) return { ok: false, uid: uid, why: '写 entries 被拦住了：' + wr.error.message };
       try { await sb.from(TABLE).delete().eq('key', probe.key); } catch (e) {}
+      // 自检通过就把状态一并翻成已连接，别让界面还停在「还没连云端」
+      emit({ status: 'online', message: '自检通过 · 已连上云端', lastSync: Date.now(), pending: 0 });
+      this.live();
       return { ok: true, uid: uid, why: '一切正常：登录、白名单、读、写都通了。' };
     },
 

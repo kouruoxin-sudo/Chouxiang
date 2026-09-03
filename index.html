@@ -249,7 +249,9 @@ a{color:#8c491a}a:hover{color:#b2622d}
   <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px var(--cx-bot);display:flex;flex-direction:column;gap:12px">
     <sc-for list="{{ libList }}" as="d" hint-placeholder-count="6">
       <button onClick="{{ d.onOpen }}" style="display:flex;align-items:center;gap:14px;text-align:left;padding:12px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
-        <span style="width:66px;height:66px;flex:none;border-radius:20px;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)"></span>
+        <span style="width:66px;height:66px;flex:none;border-radius:20px;overflow:hidden;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)">
+          <span style="display:block;width:100%;height:100%;background-size:cover;background-position:center;background-image:{{ d.thumbBg }}"></span>
+        </span>
         <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
           <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
             <span style="font:400 21px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ d.cn }}</span>
@@ -305,23 +307,32 @@ a{color:#8c491a}a:hover{color:#b2622d}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">菜谱 / 视频</span>
-        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;background:#f6ecd8">
-          <span style="width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:14px;background:#fdf8ee;font:700 14px/1 Nunito;color:#c67139">▶</span>
-          <span style="flex:1;display:flex;flex-direction:column;gap:3px">
-            <span style="font:800 13px/1.3 Nunito,'Noto Sans SC',sans-serif;color:#3a2617">{{ detailRecipe }}</span>
-            <span style="font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">点开跳转到收藏的链接</span>
-          </span>
-        </div>
+        <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">菜谱</span>
+        <sc-if value="{{ hasRecipeText }}" hint-placeholder-val="{{ false }}">
+          <span style="padding:15px 17px;border-radius:22px;background:#f6ecd8;font:700 13px/1.65 Nunito,'Noto Sans SC',sans-serif;color:#4b4438;white-space:pre-line;text-wrap:pretty">{{ detailRecipeText }}</span>
+        </sc-if>
+        <sc-if value="{{ hasRecipeLink }}" hint-placeholder-val="{{ false }}">
+          <a href="{{ detailLink }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;background:#f6ecd8;text-decoration:none" style-hover="background:#eee0c4">
+            <span style="width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:14px;background:#fdf8ee;font:700 14px/1 Nunito;color:#c67139">▶</span>
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+              <span style="font:800 13px/1.3 Nunito,'Noto Sans SC',sans-serif;color:#3a2617">{{ detailLinkLabel }}</span>
+              <span style="font:700 11px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45);word-break:break-all">{{ detailLinkHost }}</span>
+            </span>
+            <span style="font:800 15px/1 Nunito,sans-serif;color:rgba(50,40,28,.3)">›</span>
+          </a>
+        </sc-if>
+        <sc-if value="{{ noRecipe }}" hint-placeholder-val="{{ false }}">
+          <span style="font:700 12px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">还没存菜谱 · 去编辑里写一段步骤，或者粘一个链接</span>
+        </sc-if>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">菜谱截图 / 成品照</span>
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
           <sc-for list="{{ dishShots }}" as="p" hint-placeholder-count="3">
-            <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+            <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
           </sc-for>
         </div>
-        <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">点一下换掉、右上角 ✕ 删掉；最后一格是空的，想加多少张都行</span>
+        <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">点开看大图，左右滑翻页；右上角「换」换一张、✕ 删掉。最后那个空格可以一次选多张</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">吃过的时间</span>
@@ -443,6 +454,17 @@ a{color:#8c491a}a:hover{color:#b2622d}
         用 Google 地图带我去
       </a>
     </sc-if>
+    <sc-if value="{{ restHasDelivery }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">点外卖</span>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <sc-for list="{{ restDeliveryLinks }}" as="L" hint-placeholder-count="2">
+            <a href="{{ L.url }}" target="_blank" rel="noopener" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:999px;background:{{ L.bg }};color:{{ L.fg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;text-decoration:none" style-hover="opacity:.88">{{ L.label }}</a>
+          </sc-for>
+        </div>
+        <span style="font:700 10.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.4)">{{ restDeliveryHint }}</span>
+      </div>
+    </sc-if>
     <div style="display:flex;flex-direction:column;gap:10px">
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">这家常点的</span>
       <sc-for list="{{ restDishes }}" as="d" hint-placeholder-count="2">
@@ -470,7 +492,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">店里的照片</span>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
         <sc-for list="{{ restShots }}" as="p" hint-placeholder-count="3">
-          <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+          <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
         </sc-for>
       </div>
       <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">门面、菜单、招牌菜这种，最多 6 张</span>
@@ -479,7 +501,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">打卡照片</span>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
         <sc-for list="{{ restCheckinShots }}" as="p" hint-placeholder-count="3">
-          <photo-slot id="{{ p.id }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+          <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
         </sc-for>
       </div>
       <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">每次打卡传的照片都会攒在这里（最多 60 张）；点一下换掉、右上角 ✕ 删掉</span>
@@ -544,6 +566,17 @@ a{color:#8c491a}a:hover{color:#b2622d}
     </div>
     <span style="font:700 11px/1.4 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">换算：{{ formAmountAlt }}</span>
   </div>
+  <sc-if value="{{ formIsDelivery }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">等了多久送到（分钟）</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onClick="{{ waitMinus }}" aria-label="减少" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">−</button>
+        <span style="flex:1;text-align:center;padding:13px 0;border-radius:20px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:400 24px/1 'ZCOOL KuaiLe',sans-serif;color:#8c491a">{{ formWaitLabel }}</span>
+        <button onClick="{{ waitPlus }}" aria-label="增加" style="width:46px;height:46px;border:none;border-radius:999px;background:#f6ecd8;font:800 16px/1 Nunito;color:#3a2617;cursor:pointer" style-hover="background:#f2c572">+</button>
+      </div>
+      <span style="font:700 11px/1.4 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ formWaitHint }}</span>
+    </div>
+  </sc-if>
   <div style="display:flex;flex-direction:column;gap:9px">
     <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">谁吃的</span>
     <div style="display:flex;gap:10px">
@@ -562,13 +595,13 @@ a{color:#8c491a}a:hover{color:#b2622d}
     <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">照片</span>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
       <sc-for list="{{ formShots }}" as="p" hint-placeholder-count="2">
-        <photo-slot id="{{ p.id }}" shape="rounded" radius="20" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:120px"></photo-slot>
+        <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="20" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:120px"></photo-slot>
       </sc-for>
     </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:9px">
     <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.14em;color:rgba(50,40,28,.45)">备注</span>
-    <span style="min-height:60px;padding:16px 18px;border-radius:22px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:700 13px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#4b4438">{{ formNote }}</span>
+    <textarea value="{{ formNote }}" onChange="{{ setFormNote }}" rows="2" placeholder="自己写一句，或者点下面的现成句子" style="min-height:60px;padding:14px 18px;border-radius:22px;background:#fdf8ee;border:1px solid rgba(50,40,28,.14);font:700 13px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#4b4438;outline:none;resize:none"></textarea>
     <div style="display:flex;flex-wrap:wrap;gap:7px">
       <sc-for list="{{ noteChips }}" as="n" hint-placeholder-count="4">
         <button onClick="{{ n.onPick }}" style="padding:8px 13px;border:none;border-radius:999px;background:#f6ecd8;font:700 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#4b4438;cursor:pointer" style-hover="background:#f2c572">{{ n.label }}</button>
@@ -707,6 +740,34 @@ a{color:#8c491a}a:hover{color:#b2622d}
     </sc-if>
   </div>
   <div style="display:flex;flex-direction:column;gap:11px">
+    <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">生日 · 纪念日</span>
+    <span style="font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">中英的公共节日已经内置了。这里加你们自己的日子，日历上会标出来。</span>
+    <sc-for list="{{ festList }}" as="f" hint-placeholder-count="1">
+      <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;border-radius:22px;background:#f6ecd8">
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+          <span style="font:400 18px/1.15 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ f.name }}</span>
+          <span style="font:700 11px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ f.when }}</span>
+        </span>
+        <button onClick="{{ f.onRemove }}" aria-label="删掉这个日子" style="width:36px;height:36px;flex:none;border:none;border-radius:999px;background:#fdf8ee;color:rgba(50,40,28,.5);font:800 14px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#f9e2d4">✕</button>
+      </div>
+    </sc-for>
+    <sc-if value="{{ festNone }}" hint-placeholder-val="{{ false }}">
+      <span style="font:700 12px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">还没加过自己的日子</span>
+    </sc-if>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:13px;border-radius:22px;background:#f6ecd8">
+      <input value="{{ ff.name }}" onChange="{{ ffSetName }}" placeholder="叫什么，比如「果果生日」" style="min-height:44px;padding:0 16px;border:none;border-radius:999px;background:#fdf8ee;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+      <div style="display:flex;gap:8px">
+        <input value="{{ ff.m }}" onChange="{{ ffSetM }}" inputMode="numeric" placeholder="月" style="flex:1;min-width:0;box-sizing:border-box;min-height:44px;padding:0 14px;border:none;border-radius:999px;background:#fdf8ee;font:700 13px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+        <input value="{{ ff.d }}" onChange="{{ ffSetD }}" inputMode="numeric" placeholder="日" style="flex:1;min-width:0;box-sizing:border-box;min-height:44px;padding:0 14px;border:none;border-radius:999px;background:#fdf8ee;font:700 13px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+        <input value="{{ ff.y }}" onChange="{{ ffSetY }}" inputMode="numeric" placeholder="起始年（可留空）" style="flex:2;min-width:0;box-sizing:border-box;min-height:44px;padding:0 14px;border:none;border-radius:999px;background:#fdf8ee;font:700 12px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      </div>
+      <sc-if value="{{ hasFestMsg }}" hint-placeholder-val="{{ false }}">
+        <span style="font:700 11.5px/1.4 Nunito,'Noto Sans SC',sans-serif;color:#b2452d">{{ festMsg }}</span>
+      </sc-if>
+      <button onClick="{{ addFest }}" style="min-height:46px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 17px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer" style-hover="background:#b2622d">加进日历</button>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px">
     <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">人均标准</span>
     <sc-for list="{{ bandRows }}" as="b" hint-placeholder-count="2">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:24px;background:#f6ecd8">
@@ -778,6 +839,12 @@ a{color:#8c491a}a:hover{color:#b2622d}
           </button>
         </sc-for>
       </div>
+      <sc-if value="{{ hasFest }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:20px;background:#f9efd8">
+          <span style="width:26px;height:26px;flex:none"><dc-import name="Chouxiang" state="excited" hint-size="26px,26px"></dc-import></span>
+          <span style="flex:1;font:800 12px/1.4 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">{{ festLabel }}</span>
+        </div>
+      </sc-if>
     </div>
   </div>
   <div style="flex:1;min-height:0;overflow:auto;padding:4px 24px var(--cx-bot);display:flex;flex-direction:column;gap:14px">
@@ -802,6 +869,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
                 <span style="display:flex;gap:3px;height:6px;align-items:center">
                   <sc-if value="{{ c.rec }}" hint-placeholder-val="{{ false }}"><span style="width:4.5px;height:4.5px;border-radius:999px;background:{{ c.recCol }}"></span></sc-if>
                   <sc-if value="{{ c.plan }}" hint-placeholder-val="{{ false }}"><span style="width:5.5px;height:5.5px;border-radius:999px;border:1.5px solid {{ c.planCol }}"></span></sc-if>
+                  <sc-if value="{{ c.fest }}" hint-placeholder-val="{{ false }}"><span style="width:4.5px;height:4.5px;border-radius:999px;background:#c67139"></span></sc-if>
                 </span>
               </button>
             </sc-if>
@@ -810,6 +878,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
         <div style="display:flex;gap:13px;align-items:center">
           <span style="display:flex;align-items:center;gap:5px;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)"><span style="width:5px;height:5px;border-radius:999px;background:#ecb75e"></span>已记录</span>
           <span style="display:flex;align-items:center;gap:5px;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)"><span style="width:6px;height:6px;border-radius:999px;border:1.5px solid #8fa073"></span>已计划</span>
+          <span style="display:flex;align-items:center;gap:5px;font:700 10.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)"><span style="width:5px;height:5px;border-radius:999px;background:#c67139"></span>节日</span>
           <span style="flex:1"></span>
           <span aria-hidden="true" style="width:28px;height:28px;flex:none;opacity:.9"><dc-import name="Chouxiang" state="giggle" hint-size="28px,28px"></dc-import></span>
         </div>
@@ -940,6 +1009,12 @@ a{color:#8c491a}a:hover{color:#b2622d}
       <button onClick="{{ rfToggleDelivery }}" style="flex:1;min-height:46px;border:none;border-radius:999px;background:{{ rfDeliveryBg }};color:{{ rfDeliveryFg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">可外卖</button>
       <button onClick="{{ rfToggleOnly }}" style="flex:1;min-height:46px;border:none;border-radius:999px;background:{{ rfOnlyBg }};color:{{ rfOnlyFg }};font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">只做外卖</button>
     </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">外卖平台链接（可留空）</span>
+      <input value="{{ rf.uber }}" onChange="{{ rfSetUber }}" inputMode="url" placeholder="Uber Eats 这家店的链接" style="min-height:44px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      <input value="{{ rf.deliveroo }}" onChange="{{ rfSetDeliveroo }}" inputMode="url" placeholder="Deliveroo 这家店的链接" style="min-height:44px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,sans-serif;color:#3a2617;outline:none">
+      <span style="font:700 10.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">留空也行 —— 菜单页会给一个按店名去平台搜的按钮。</span>
+    </div>
     <sc-if value="{{ rfCanDelete }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:9px;padding-top:2px">
         <sc-if value="{{ confirmDel }}" hint-placeholder-val="{{ false }}">
@@ -972,7 +1047,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
         <photo-slot id="{{ dfSlotDish }}" shape="rect" placeholder="成品照" style="width:100%;height:100%"></photo-slot>
       </div>
       <div style="flex:1;height:132px;border-radius:24px;overflow:hidden;background:#f6ecd8">
-        <photo-slot id="{{ dfSlotRecipe }}" shape="rect" placeholder="菜谱截图" style="width:100%;height:100%"></photo-slot>
+        <photo-slot id="{{ dfSlotRecipe }}" prefix="{{ dfSlotRecipePrefix }}" shape="rect" placeholder="菜谱截图" style="width:100%;height:100%"></photo-slot>
       </div>
     </div>
     <label style="display:flex;flex-direction:column;gap:7px">
@@ -1010,9 +1085,14 @@ a{color:#8c491a}a:hover{color:#b2622d}
           <textarea value="{{ df.ing }}" onChange="{{ dfSetIng }}" rows="2" placeholder="鸡腿肉、土豆、青椒、皮带面、干辣椒" style="padding:14px 18px;border:none;border-radius:22px;background:#f6ecd8;font:700 13px/1.55 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none;resize:none"></textarea>
         </label>
         <label style="display:flex;flex-direction:column;gap:7px">
-          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">菜谱 / 视频</span>
-          <input value="{{ df.recipe }}" onChange="{{ dfSetRecipe }}" placeholder="王刚 · 大盘鸡" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
-          <input value="{{ df.link }}" onChange="{{ dfSetLink }}" inputMode="url" placeholder="粘一个链接进来" style="min-height:44px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,sans-serif;color:#8c491a;outline:none">
+          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">做法（文字版，可留空）</span>
+          <textarea value="{{ df.recipe }}" onChange="{{ dfSetRecipe }}" rows="5" placeholder="1. 鸡腿肉切块，冷水下锅焊一下&#10;2. 点点冰糖炒糖色，下鸡肉炒上色&#10;3. 加土豆和水，炖 20 分钟" style="padding:14px 18px;border:none;border-radius:22px;background:#f6ecd8;font:700 13px/1.6 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none;resize:vertical"></textarea>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:7px">
+          <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">帖子 / 视频链接（可留空）</span>
+          <input value="{{ df.linkName }}" onChange="{{ dfSetLinkName }}" placeholder="给链接起个名，比如「王刚 · 大盘鸡」" style="min-height:46px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;outline:none">
+          <input value="{{ df.link }}" onChange="{{ dfSetLink }}" inputMode="url" placeholder="https://… 粘一个链接进来" style="min-height:44px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;font:700 12px/1 Nunito,sans-serif;color:#8c491a;outline:none">
+          <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">两者可以只填一个，也可以都填 —— 菜谱页会都显示。</span>
         </label>
       </div>
     </sc-if>
@@ -1344,11 +1424,13 @@ function haversine(a, b) {
     Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-// 市内按 22km/h 折算，长途按 70km/h —— 只是估个到店时间，不是导航
+// 公共交通口径：近的走过去，市内按公交 14km/h 门到门再加候车和两头步行，
+// 长途按火车 55km/h 加进出站时间。只是估个到店时间，精确路线点「带我去」看地图。
 function minutesFor(km) {
-  if (km < 1.2) return Math.max(3, Math.round(km / 0.075));
-  if (km < 40) return Math.round(km / 22 * 60) + 4;
-  return Math.round(km / 70 * 60) + 20;
+  if (km < 1.1) return Math.max(4, Math.round(km / 0.075));            // 走路 4.5km/h
+  if (km < 2.6) return Math.round(km / 11 * 60) + 6;                    // 一趟公交，等车 6 分钟
+  if (km < 40) return Math.round(km / 14 * 60) + 9;                     // 市内公交 / 地铁
+  return Math.round(km / 55 * 60) + 30;                                 // 城际火车
 }
 
 const SAYINGS = [
@@ -1369,7 +1451,8 @@ const SAYINGS = [
   { t: '咩！', s: 'giggle' },
   { t: '臭翔不高兴了，要菜菜亲亲才能好', s: 'shy' },
   { t: '菜~！', s: 'success' },
-  { t: 'Mua~', s: 'love' }
+  { t: 'Mua~', s: 'love' },
+  { t: '吃掉菜菜！（嚼嚼）', s: 'eat' }
 ];
 
 const WEEK = [
@@ -1379,6 +1462,75 @@ const WEEK = [
 ];
 
 const NOTE_CHIPS = ['好吃，会再来', '有点贵', '人太多了', '外卖装得不好', '带朋友来的'];
+
+// ── 节日 ────────────────────────────────────────────────
+// 每年同一天的（中英通用）
+const FEST_FIXED = {
+  '01-01': '元旦 · New Year',
+  '02-14': '情人节',
+  '03-08': '妇女节',
+  '05-01': '劳动节',
+  '06-01': '儿童节',
+  '10-01': '国庆节',
+  '10-31': '万圣夜 · Halloween',
+  '11-05': 'Bonfire Night',
+  '12-24': '平安夜',
+  '12-25': '圣诞节 · Christmas',
+  '12-26': 'Boxing Day',
+  '12-31': '跨年夜'
+};
+// 每年日期都不一样的：英国银行假日、农历节日（按年份查表）
+const FEST_BY_YEAR = {
+  2026: { '01-01': '元旦 · New Year', '02-17': '春节 · 大年初一', '03-03': '元宵节',
+    '04-03': 'Good Friday', '04-05': '复活节', '04-06': 'Easter Monday', '04-20': '清明节',
+    '05-04': 'Early May Bank Holiday', '05-25': 'Spring Bank Holiday', '06-19': '端午节',
+    '08-31': 'Summer Bank Holiday', '09-25': '中秋节', '10-18': '重阳节' },
+  2027: { '02-06': '春节 · 大年初一', '02-20': '元宵节',
+    '03-26': 'Good Friday', '03-28': '复活节', '03-29': 'Easter Monday', '04-05': '清明节',
+    '05-03': 'Early May Bank Holiday', '05-31': 'Spring Bank Holiday', '06-09': '端午节',
+    '08-30': 'Summer Bank Holiday', '09-15': '中秋节', '10-08': '重阳节' },
+  2028: { '01-26': '春节 · 大年初一', '02-09': '元宵节',
+    '04-14': 'Good Friday', '04-16': '复活节', '04-17': 'Easter Monday', '04-04': '清明节',
+    '05-01': 'Early May Bank Holiday', '05-29': 'Spring Bank Holiday', '05-28': '端午节',
+    '08-28': 'Summer Bank Holiday', '10-03': '中秋节', '10-26': '重阳节' },
+  2029: { '02-13': '春节 · 大年初一', '02-27': '元宵节',
+    '03-30': 'Good Friday', '04-01': '复活节', '04-02': 'Easter Monday', '04-04': '清明节',
+    '05-07': 'Early May Bank Holiday', '05-28': 'Spring Bank Holiday', '06-16': '端午节',
+    '08-27': 'Summer Bank Holiday', '09-22': '中秋节', '10-16': '重阳节' },
+  2030: { '02-03': '春节 · 大年初一', '02-17': '元宵节',
+    '04-19': 'Good Friday', '04-21': '复活节', '04-22': 'Easter Monday', '04-05': '清明节',
+    '05-06': 'Early May Bank Holiday', '05-27': 'Spring Bank Holiday', '06-05': '端午节',
+    '08-26': 'Summer Bank Holiday', '09-12': '中秋节', '10-05': '重阳节' },
+  2031: { '01-23': '春节 · 大年初一', '02-06': '元宵节',
+    '04-11': 'Good Friday', '04-13': '复活节', '04-14': 'Easter Monday', '04-05': '清明节',
+    '05-05': 'Early May Bank Holiday', '05-26': 'Spring Bank Holiday', '06-24': '端午节',
+    '08-25': 'Summer Bank Holiday', '10-01': '中秋节', '10-24': '重阳节' },
+  2032: { '02-11': '春节 · 大年初一', '02-25': '元宵节',
+    '03-26': 'Good Friday', '03-28': '复活节', '03-29': 'Easter Monday', '04-04': '清明节',
+    '05-03': 'Early May Bank Holiday', '05-31': 'Spring Bank Holiday', '06-12': '端午节',
+    '08-30': 'Summer Bank Holiday', '09-19': '中秋节', '10-12': '重阳节' },
+  2033: { '01-31': '春节 · 大年初一', '02-14': '元宵节',
+    '04-15': 'Good Friday', '04-17': '复活节', '04-18': 'Easter Monday', '04-04': '清明节',
+    '05-02': 'Early May Bank Holiday', '05-30': 'Spring Bank Holiday', '06-01': '端午节',
+    '08-29': 'Summer Bank Holiday', '09-08': '中秋节', '10-01': '重阳节' },
+  2034: { '02-19': '春节 · 大年初一', '03-05': '元宵节',
+    '04-07': 'Good Friday', '04-09': '复活节', '04-10': 'Easter Monday', '04-05': '清明节',
+    '05-01': 'Early May Bank Holiday', '05-29': 'Spring Bank Holiday', '06-20': '端午节',
+    '08-28': 'Summer Bank Holiday', '09-27': '中秋节', '10-20': '重阳节' },
+  2035: { '02-08': '春节 · 大年初一', '02-22': '元宵节',
+    '03-23': 'Good Friday', '03-25': '复活节', '03-26': 'Easter Monday', '04-05': '清明节',
+    '05-07': 'Early May Bank Holiday', '05-28': 'Spring Bank Holiday', '06-10': '端午节',
+    '08-27': 'Summer Bank Holiday', '09-16': '中秋节', '10-09': '重阳节' }
+};
+const pad2 = n => (n < 10 ? '0' : '') + n;
+
+// 轻食 ≤600 卡，正常 600–800，大餐 >800；没填热量时退回按耗时粗判
+function bandOfKcal(kcal, mins) {
+  const k = parseInt(kcal, 10);
+  if (k > 0) return k <= 600 ? 'light' : k <= 800 ? 'normal' : 'feast';
+  return (mins || 30) <= 15 ? 'light' : 'normal';
+}
+const KCAL_BAND_LABEL = { light: '轻食 · 600 卡以内', normal: '正常 · 600–800 卡', feast: '大餐 · 800 卡以上' };
 
 const AXIS_LABEL = {
   band: { light: '轻食', normal: '正常', feast: '大餐' },
@@ -1435,16 +1587,18 @@ class Component extends DCLogic {
     cloud: { status: 'off', message: '还没连云端', lastSync: null },
     cloudUrl: '', cloudKey: '', cloudOpen: false, sqlOpen: false, copied: false,
     here: null, locState: 'idle', editingRest: null, editingDish: null, confirmDel: false,
-    rform: { cn: '', en: '', cuisine: CUISINE_OPTS[0], city: '', avg: '', delivery: false, deliveryOnly: false, lat: null, lon: null },
-    dform: { cn: '', en: '', how: 'cook', cost: '', kcal: '', mins: '', times: '0', ing: '', recipe: '', link: '', note: '', tags: '' },
+    rform: { cn: '', en: '', cuisine: CUISINE_OPTS[0], city: '', avg: '', delivery: false, deliveryOnly: false, lat: null, lon: null, uber: '', deliveroo: '' },
+    dform: { cn: '', en: '', how: 'cook', cost: '', kcal: '', mins: '', times: '0', ing: '', recipe: '', link: '', linkName: '', note: '', tags: '' },
     q: '', photoTick: 0,
     detailId: 'dpj', restId: 'lanzhou',
     want: ['fish', 'hotpot'], justLogged: false,
     cur: 0, lowBand: 15, highBand: 35,
-    visits: {}, pvisits: {}, form: { dayOffset: 0, mode: '堂食', amt: 15, note: '好吃，会再来', by: '', together: true },
+    visits: {}, pvisits: {}, form: { dayOffset: 0, mode: '堂食', amt: 15, note: '好吃，会再来', by: '', together: true, wait: 0 },
     who: '', authUser: null, authReady: false,
     loginEmail: '', loginPw: '', loginErr: '', loggingIn: false, toasts: [],
-    diag: null, diagging: false, diagCopied: false
+    diag: null, diagging: false, diagCopied: false,
+    fests: [{ id: 'f-demo', name: '我们在一起', md: '03-14', y: 2023 }],
+    festForm: { name: '', m: '', d: '', y: '' }, festMsg: ''
   };
 
   meWho() { return this.state.who || 'cai'; }
@@ -1463,7 +1617,7 @@ class Component extends DCLogic {
       });
     });
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
-    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand } };
+    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests } };
     return out;
   }
 
@@ -1518,6 +1672,7 @@ class Component extends DCLogic {
       if (p.cur != null) patch.cur = p.cur;
       if (p.lowBand != null) patch.lowBand = p.lowBand;
       if (p.highBand != null) patch.highBand = p.highBand;
+      if (p.fests) patch.fests = p.fests;
     }
     if (Object.keys(patch).length) this.setState(patch);
     this.forceUpdate();
@@ -1528,12 +1683,14 @@ class Component extends DCLogic {
   gallery(prefix, legacy, cap) {
     const all = window.PhotoStore ? window.PhotoStore.all() : {};
     const cap2 = cap || 30;
-    const list = (legacy || []).filter(id => all[id]).map(id => ({ id: id, ph: '照片', filled: true }));
-    for (let i = 0; i < cap2; i++) if (all[prefix + i]) list.push({ id: prefix + i, ph: '照片', filled: true });
+    const g = prefix;
+    const mk = (id, ph, filled) => ({ id: id, ph: ph, filled: filled, prefix: prefix, group: g });
+    const list = (legacy || []).filter(id => all[id]).map(id => mk(id, '照片', true));
+    for (let i = 0; i < cap2; i++) if (all[prefix + i]) list.push(mk(prefix + i, '照片', true));
     if (list.length < cap2) {
       let n = 0;
       while (all[prefix + n]) n++;
-      list.push({ id: prefix + n, ph: list.length ? '再加一张' : '拖照片进来', filled: false });
+      list.push(mk(prefix + n, list.length ? '再加几张' : '选照片，可以一次多张', false));
     }
     return list;
   }
@@ -1542,12 +1699,15 @@ class Component extends DCLogic {
   checkinGallery(restId, cap) {
     const all = window.PhotoStore ? window.PhotoStore.all() : {};
     const pre = 'checkin-' + restId + '-';
+    const addPre = pre + 'add-p';
+    const g = pre + 'all';
+    const mk = (id, ph, filled) => ({ id: id, ph: ph, filled: filled, prefix: addPre, group: g });
     const list = Object.keys(all).filter(k => k.indexOf(pre) === 0).sort()
-      .map(id => ({ id: id, ph: '照片', filled: true }));
+      .map(id => mk(id, '照片', true));
     if (list.length < (cap || 60)) {
       let n = 0;
-      while (all[pre + 'add-p' + n]) n++;
-      list.push({ id: pre + 'add-p' + n, ph: list.length ? '再加一张' : '拖照片进来', filled: false });
+      while (all[addPre + n]) n++;
+      list.push(mk(addPre + n, list.length ? '再加几张' : '选照片，可以一次多张', false));
     }
     return list;
   }
@@ -1681,7 +1841,7 @@ class Component extends DCLogic {
     return keys.some(k => (c || '').indexOf(k) === 0);
   }
 
-  etaOf(r) { return r.eta != null ? r.eta : (r.deliveryOnly ? 30 : 45); }
+
 
   dishesOf(id) { return DISHES.filter(d => d.rest === id); }
 
@@ -1702,7 +1862,7 @@ class Component extends DCLogic {
       return {
         kind: 'rest', ref: r, id: r.id, cn: r.cn, en: r.en,
         tags: [r.cuisine, this.bandOf(r.avg)]
-          .concat(isOrder ? ['送到约 ' + eta + ' 分钟'] : [travel >= 999 ? '要专程跑一趟' : '过去约 ' + travel + ' 分钟'])
+          .concat(isOrder ? ['送到约 ' + eta + ' 分钟'] : [travel >= 999 ? '要专程跑一趟' : '公交约 ' + travel + ' 分钟'])
           .concat(this.dishesOf(r.id).slice(0, 2).map(d => d.cn)),
         why: (vs.length
           ? ['去过 ' + vs.length + ' 次，没让你失望过', '上一次是 ' + vs[0].d]
@@ -1761,7 +1921,7 @@ class Component extends DCLogic {
     return {
       dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
       visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, cur: st.cur,
-      lowBand: st.lowBand, highBand: st.highBand
+      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests
     };
   }
 
@@ -1776,7 +1936,8 @@ class Component extends DCLogic {
       who: data.who || this.state.who, want: data.want || [],
       cur: data.cur != null ? data.cur : this.state.cur,
       lowBand: data.lowBand != null ? data.lowBand : this.state.lowBand,
-      highBand: data.highBand != null ? data.highBand : this.state.highBand
+      highBand: data.highBand != null ? data.highBand : this.state.highBand,
+      fests: data.fests || this.state.fests
     });
   }
 
@@ -1845,6 +2006,7 @@ class Component extends DCLogic {
     const gbp = f.amt / CUR[this.state.cur].rate;
     const by = f.by || this.meWho();
     const entry = { d: this.formDateLabel(), mode: f.mode, amt: gbp, note: f.note, by: by, together: !!f.together };
+    if (f.mode === '外卖' && f.wait > 0) entry.wait = f.wait;
     const list = (this.state.visits[r.id] || []).concat([entry]);
     // 同时写进当天的记录，一起吃的就两个人都算
     const t = shift(TODAY.y, TODAY.m, TODAY.d, f.dayOffset);
@@ -1861,7 +2023,33 @@ class Component extends DCLogic {
     });
   }
 
-  componentDidUpdate() { this.persist(); }
+  componentDidUpdate(prevProps, prevState) {
+    this.persist();
+    // 定位晚于地图加载时，把「我在这儿」补推给地图
+    const h = this.state.here, p = prevState && prevState.here;
+    if (h && (!p || p[0] !== h[0] || p[1] !== h[1])) {
+      const f = this.mapFrame();
+      if (f && f.contentWindow) {
+        try { f.contentWindow.postMessage({ type: 'me', lat: h[0], lon: h[1] }, '*'); } catch (e) {}
+      }
+    }
+  }
+
+  // 菜谱页「记一笔」：把这道菜记进今天，再跳到记录
+  logDishNow(d) {
+    const key = dkey(TODAY.y, TODAY.m, TODAY.d);
+    const by = this.meWho();
+    const where = d.how === 'cook' ? '自己做' : d.how === 'order' ? '点外卖' : '出去吃';
+    const item = {
+      slot: '晚', cn: d.cn, mood: 'enjoy', by: by, together: true,
+      note: where + ' · ' + this.money(d.cost || 0)
+    };
+    const day = (RECORDS[key] || []).filter(it => !(it.cn === d.cn && (it.by || 'cai') === by));
+    RECORDS[key] = day.concat([item]);
+    const dish = DISHES.filter(x => x.id === d.id)[0];
+    if (dish) { dish.times = (dish.times || 0) + 1; dish.days = 0; }
+    this.go('diary', { justLogged: true });
+  }
 
   componentWillUnmount() {
     clearTimeout(this.timer); clearTimeout(this.sayTimer); clearTimeout(this.saveTimer); clearTimeout(this.cloudTimer);
@@ -1871,6 +2059,7 @@ class Component extends DCLogic {
     this.unsubCloud && this.unsubCloud();
     this.unsubAuth && this.unsubAuth();
     this.unsubRow && this.unsubRow();
+    clearTimeout(this._photoT);
     this.unsubPhotos && this.unsubPhotos();
   }
 
@@ -1882,12 +2071,11 @@ class Component extends DCLogic {
     this.mqPhone.addEventListener('change', syncPhone);
     this.unsubPhone = () => this.mqPhone.removeEventListener('change', syncPhone);
     RESTAURANTS.forEach(r => { if (!r.geo && GEO[r.id]) r.geo = GEO[r.id]; });
+    // 热量分档统一按 600 / 800 卡重算，老数据也跟着对齐
+    DISHES.forEach(d => { d.band = bandOfKcal(d.kcal, d.minutes || d.eta || d.travel); });
     if (window.AppStore) this.hydrate(window.AppStore.load());
-    if (window.PhotoStore) {
-      window.PhotoStore.ready().then(() => this.forceUpdate());
-      // 加/换/删照片后，照片墙要立刻长出新的空位
-      this.unsubPhotos = window.PhotoStore.subscribe(() => this.setState({ photoTick: Date.now() }));
-    }
+    // photo-slot.js 是 helmet 里异步加载的，挂载时可能还没到，所以要等它出现再订阅
+    this.hookPhotos();
     if (window.CloudSync) {
       const c = window.CloudSync.config();
       this.setState({ cloudUrl: c.url, cloudKey: c.key, who: window.CloudSync.who() || this.state.who });
@@ -1927,6 +2115,26 @@ class Component extends DCLogic {
       }
     } catch (err) {}
     this.locate();
+  }
+
+  // 加/换/删照片后照片墙要立刻长出新空位；PhotoStore 还没加载就重试
+  hookPhotos() {
+    if (this.unsubPhotos) return;
+    if (!window.PhotoStore) {
+      if (this._photoTries == null) this._photoTries = 0;
+      if (this._photoTries++ > 60) return;
+      this._photoT = setTimeout(() => this.hookPhotos(), 120);
+      return;
+    }
+    window.PhotoStore.ready().then(() => this.forceUpdate());
+    this.unsubPhotos = window.PhotoStore.subscribe(() => this.setState({ photoTick: Date.now() }));
+    this.forceUpdate();
+  }
+
+  mapFrame() {
+    return document.querySelector('iframe[title="打卡地图"]')
+      || Array.prototype.find.call(document.querySelectorAll('iframe'),
+           f => (f.getAttribute('src') || '').indexOf('world-map') > -1);
   }
 
   locate() {
@@ -1971,14 +2179,39 @@ class Component extends DCLogic {
     this.forceUpdate();
   }
 
+  // 标签上的路程也用公交口径，和详情那行说法一致
+  // 外卖送达时间：优先用你自己打卡记下的真实等待时间的平均值
+  etaAvgOf(r) {
+    if (!r) return null;
+    const ws = this.allVisits(r).map(v => v.wait).filter(w => w > 0);
+    if (!ws.length) return null;
+    return { n: ws.length, m: Math.round(ws.reduce((a, b) => a + b, 0) / ws.length) };
+  }
+
+  etaOf(r) {
+    if (!r) return 30;
+    const avg = this.etaAvgOf(r);
+    if (avg) return avg.m;
+    return r.eta != null ? r.eta : (r.deliveryOnly ? 30 : 45);
+  }
+
+  travelChip(r) {
+    if (r.deliveryOnly) return ['外卖约 ' + this.etaOf(r) + ' 分钟'];
+    if (r.travel >= 999) return ['要坐飞机'];
+    if (!(r.travel > 0)) return [];
+    const how = r.km != null && r.km < 1.1 ? '走路' : '公交';
+    return [how + ' ' + r.travel + ' 分钟'];
+  }
+
   travelLine(r) {
     if (r.deliveryOnly) return '只做外卖';
     if (!this.state.here || r.km == null) {
       if (r.travel == null) return '还没算过路程';
-      return r.travel >= 999 ? '要专程飞一趟' : '约 ' + r.travel + ' 分钟';
+      return r.travel >= 999 ? '要专程飞一趟' : '公交约 ' + r.travel + ' 分钟';
     }
     const km = r.km < 10 ? r.km.toFixed(1) : Math.round(r.km);
-    return '距你 ' + km + ' km · 约 ' + r.travel + ' 分钟';
+    const how = r.km < 1.1 ? '走路' : '公交';
+    return '距你 ' + km + ' km · ' + how + '约 ' + r.travel + ' 分钟';
   }
 
   patchRForm(p) { this.setState({ rform: Object.assign({}, this.state.rform, p) }); }
@@ -1991,9 +2224,10 @@ class Component extends DCLogic {
       rform: r
         ? { cn: r.cn, en: r.en || '', cuisine: r.cuisine, city: r.city, avg: String(r.avg),
             delivery: !!r.delivery, deliveryOnly: !!r.deliveryOnly,
+            uber: r.uber || '', deliveroo: r.deliveroo || '',
             lat: r.geo ? r.geo[0] : null, lon: r.geo ? r.geo[1] : null }
         : { cn: '', en: '', cuisine: CUISINE_OPTS[0], city: '', avg: '',
-            delivery: false, deliveryOnly: false, lat: null, lon: null }
+            delivery: false, deliveryOnly: false, uber: '', deliveroo: '', lat: null, lon: null }
     });
   }
 
@@ -2005,6 +2239,7 @@ class Component extends DCLogic {
       cn: f.cn.trim(), en: f.en.trim() || f.cn.trim(), cuisine: f.cuisine,
       city: f.city.trim() || '还没写地址', avg: avg,
       delivery: f.delivery || f.deliveryOnly, deliveryOnly: f.deliveryOnly,
+      uber: (f.uber || '').trim(), deliveroo: (f.deliveroo || '').trim(),
       geo: f.lat != null ? [f.lat, f.lon] : null
     };
     let id = this.state.editingRest;
@@ -2013,6 +2248,7 @@ class Component extends DCLogic {
     } else {
       id = 'r' + Date.now();
       RESTAURANTS.push(Object.assign({ id: id, wish: true, visits: [] }, patch));
+      this.movePhotos('rest-new', 'rest-' + id);
     }
     this.recalcTravel();
     this.setState({ screen: 'restDetail', restId: id, editingRest: null, confirmDel: false });
@@ -2028,6 +2264,62 @@ class Component extends DCLogic {
       restId: RESTAURANTS[0] ? RESTAURANTS[0].id : '' });
   }
 
+  // 这一天有什么可过的：公共节日 + 你们自己加的生日纪念日
+  festsOn(y, m, d) {
+    const md = pad2(m) + '-' + pad2(d);
+    const out = [];
+    const byYear = FEST_BY_YEAR[y] || {};
+    if (byYear[md]) out.push(byYear[md]);
+    if (FEST_FIXED[md] && out.indexOf(FEST_FIXED[md]) < 0) out.push(FEST_FIXED[md]);
+    (this.state.fests || []).forEach(f => {
+      if (f.md !== md) return;
+      out.push(f.y ? f.name + ' · 第 ' + (y - f.y) + ' 年' : f.name);
+    });
+    return out;
+  }
+
+  addFest() {
+    const f = this.state.festForm;
+    const name = (f.name || '').trim();
+    const m = parseInt(f.m, 10), d = parseInt(f.d, 10);
+    if (!name || !(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) {
+      return this.setState({ festMsg: '名字、月、日都要填对才存得下' });
+    }
+    const item = { id: 'f' + Date.now(), name: name, md: pad2(m) + '-' + pad2(d), y: parseInt(f.y, 10) || null };
+    this.setState({
+      fests: (this.state.fests || []).concat([item]),
+      festForm: { name: '', m: '', d: '', y: '' }, festMsg: ''
+    });
+  }
+
+  thumbBgOf(d) {
+    const u = this.thumbOf(d);
+    return u ? 'url("' + u + '")' : 'none';
+  }
+
+  // 列表缩略图：先用成品照，没有就用第一张菜谱截图
+  thumbOf(d) {
+    if (!window.PhotoStore) return '';
+    const all = window.PhotoStore.all();
+    if (all['dish-' + d.id]) return all['dish-' + d.id];
+    for (let i = 0; i < 6; i++) if (all['dish-' + d.id + '-p' + i]) return all['dish-' + d.id + '-p' + i];
+    const legacy = ['-a', '-b', '-c'].map(x => all['dish-' + d.id + x]).filter(Boolean);
+    return legacy[0] || '';
+  }
+
+  // 新建时照片先存在 …-new 名下，存好后搬到真正的 id 上，不然照片会「不见」
+  movePhotos(fromPre, toPre) {
+    if (!window.PhotoStore) return;
+    const all = window.PhotoStore.all();
+    Object.keys(all).forEach(k => {
+      if (k === fromPre || k.indexOf(fromPre + '-') === 0) {
+        const nk = toPre + k.slice(fromPre.length);
+        window.PhotoStore.set(nk, all[k]);
+        window.PhotoStore.set(k, null);
+      }
+    });
+  }
+
   openDishForm(id) {
     const d = id ? DISHES.filter(x => x.id === id)[0] : null;
     this.setState({
@@ -2036,10 +2328,11 @@ class Component extends DCLogic {
         ? { cn: d.cn, en: d.en || '', how: d.how, cost: String(d.cost),
             kcal: String(d.kcal || ''), mins: String(d.minutes || d.eta || d.travel || ''),
             times: String(d.times || 0), ing: (d.ing || []).join('、'),
-            recipe: d.recipe || '', link: d.link || '', note: (d.notes || []).join('；'),
+            recipe: d.recipe || '', link: d.link || '', linkName: d.linkName || '',
+            note: (d.notes || []).join('；'),
             tags: (d.tags || []).join('、') }
         : { cn: '', en: '', how: 'cook', cost: '', kcal: '', mins: '', times: '0',
-            ing: '', recipe: '', link: '', note: '', tags: '' },
+            ing: '', recipe: '', link: '', linkName: '', note: '', tags: '' },
       dform2: null
     });
   }
@@ -2054,19 +2347,21 @@ class Component extends DCLogic {
       kcal: parseInt(f.kcal, 10) || null,
       times: parseInt(f.times, 10) || 0,
       ing: f.ing ? f.ing.split(/[、,，]/).map(s => s.trim()).filter(Boolean) : [],
-      recipe: f.recipe.trim(), link: f.link.trim(),
+      recipe: (f.recipe || '').trim(), link: (f.link || '').trim(), linkName: (f.linkName || '').trim(),
       tags: f.tags ? f.tags.split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean) : [],
       notes: f.note ? f.note.split(/[；;]/).map(s => s.trim()).filter(Boolean) : []
     };
-    if (f.how === 'cook') { patch.minutes = mins; patch.band = mins <= 15 ? 'light' : 'normal'; }
+    if (f.how === 'cook') { patch.minutes = mins; }
     if (f.how === 'order') { patch.eta = mins; patch.cuisine = 'other'; }
     if (f.how === 'out') { patch.travel = mins; }
+    patch.band = bandOfKcal(patch.kcal, mins);
     let id = this.state.editingDish;
     if (id) {
       Object.assign(DISHES.filter(x => x.id === id)[0], patch);
     } else {
       id = 'd' + Date.now();
       DISHES.push(Object.assign({ id: id, days: 0, score: 0, tags: [], why: ['刚加进菜库，还没试过'], dates: [] }, patch));
+      this.movePhotos('dish-new', 'dish-' + id);
     }
     this.setState({ screen: 'detail', detailId: id, editingDish: null, confirmDel: false });
   }
@@ -2118,9 +2413,11 @@ class Component extends DCLogic {
       fg: isSel ? '#fdf8ee' : '#3a2617',
       fg2: isSel ? 'rgba(253,248,238,.72)' : 'rgba(50,40,28,.42)',
       rec: rec, plan: plan,
+      fest: this.festsOn(t.y, t.m, t.d).length > 0,
       recCol: isSel ? '#fdf8ee' : '#ecb75e',
       planCol: isSel ? '#fdf8ee' : '#8fa073',
       aria: t.m + '月' + t.d + '日' + (isToday ? '，今天' : '') +
+        (this.festsOn(t.y, t.m, t.d).length ? '，' + this.festsOn(t.y, t.m, t.d).join('、') : '') +
         (rec && plan ? '，有饮食记录和用餐计划' : rec ? '，有饮食记录' : plan ? '，有用餐计划' : '，暂无记录'),
       onPick: () => this.pickDay(t.y, t.m, t.d)
     };
@@ -2228,8 +2525,8 @@ class Component extends DCLogic {
     });
     const dishMetaOf = d => {
       const where = d.how === 'cook' ? '自己做 · ' + d.minutes + ' 分钟'
-        : d.how === 'order' ? '点外卖 · ' + (d.eta || 30) + ' 分钟送达'
-        : '出去吃 · ' + (d.travel >= 999 ? '需要出差' : (d.travel || 0) + ' 分钟');
+        : d.how === 'order' ? '点外卖 · ' + (d.rest ? this.etaOf(this.restaurant(d.rest)) : (d.eta || 30)) + ' 分钟送达'
+        : '出去吃 · 公交 ' + (d.travel >= 999 ? '需要出差' : (d.travel || 0) + ' 分钟');
       return this.money(d.cost) + ' · ' + where;
     };
     const searchRows = !kw ? [] : DISHES
@@ -2239,6 +2536,7 @@ class Component extends DCLogic {
         cn: d.cn,
         kind: d.how === 'cook' ? '菜谱' : d.how === 'order' ? '外卖菜' : '堂食菜',
         kindBg: '#f2c572', kindFg: '#7a4413',
+        thumbBg: this.thumbBgOf(d),
         meta: dishMetaOf(d),
         gapLabel: d.days + ' 天\n没吃',
         gapColor: d.days >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -2261,8 +2559,8 @@ class Component extends DCLogic {
         }));
     const dishMeta = d => {
       const where = d.how === 'cook' ? '自己做 · ' + d.minutes + ' 分钟'
-        : d.how === 'order' ? '点外卖 · ' + d.eta + ' 分钟送达'
-        : '出去吃 · ' + (d.travel >= 999 ? '需要出差' : d.travel + ' 分钟');
+        : d.how === 'order' ? '点外卖 · ' + (d.rest ? this.etaOf(this.restaurant(d.rest)) : d.eta) + ' 分钟送达'
+        : '出去吃 · 公交 ' + (d.travel >= 999 ? '需要出差' : d.travel + ' 分钟');
       return this.money(d.cost) + ' · ' + where;
     };
     const altCur = CUR[(st.cur + 1) % CUR.length];
@@ -2346,8 +2644,11 @@ class Component extends DCLogic {
       hasHere: !!st.here,
       mapMe: st.here ? JSON.stringify(st.here) : '',
       fitMe: () => {
-        const f = document.querySelector('iframe[title="打卡地图"]');
-        if (f && st.here) f.contentWindow.postMessage({ type: 'fit-me', lat: st.here[0], lon: st.here[1] }, '*');
+        const f = this.mapFrame();
+        if (!f || !st.here) return;
+        // 先补一次「我在这儿」的点，再把镜头挪过去
+        f.contentWindow.postMessage({ type: 'me', lat: st.here[0], lon: st.here[1] }, '*');
+        f.contentWindow.postMessage({ type: 'fit-me', lat: st.here[0], lon: st.here[1] }, '*');
       },
       pushPins: e => {
         const f = e.target;
@@ -2384,7 +2685,9 @@ class Component extends DCLogic {
       rfDeliveryFg: st.rform.delivery ? '#fdf8ee' : 'rgba(50,40,28,.55)',
       rfOnlyBg: st.rform.deliveryOnly ? '#8fa073' : '#f6ecd8',
       rfOnlyFg: st.rform.deliveryOnly ? '#fdf8ee' : 'rgba(50,40,28,.55)',
-      rfSlot: 'rest-photo-' + (st.editingRest || 'new'),
+      rfSlot: 'rest-' + (st.editingRest || 'new') + '-hero',
+      rfSetUber: e => this.patchRForm({ uber: e.target.value }),
+      rfSetDeliveroo: e => this.patchRForm({ deliveroo: e.target.value }),
       saveRest: () => this.saveRest(),
       editRest: () => this.openRestForm(st.restId),
       newRest: () => this.openRestForm(null),
@@ -2410,8 +2713,12 @@ class Component extends DCLogic {
       dfSetLink: e => this.patchDForm({ link: e.target.value }),
       dfSetNote: e => this.patchDForm({ note: e.target.value }),
       dfSetTags: e => this.patchDForm({ tags: e.target.value }),
-      dfSlotDish: 'dish-photo-' + (st.editingDish || 'new'),
-      dfSlotRecipe: 'dish-recipe-' + (st.editingDish || 'new'),
+      // 和菜谱详情页用同一套 id，存完照片不会「不见」
+      dfSlotDish: 'dish-' + (st.editingDish || 'new'),
+      dfSlotRecipe: 'dish-' + (st.editingDish || 'new') + '-p0',
+      dfSlotRecipePrefix: 'dish-' + (st.editingDish || 'new') + '-p',
+      dfLinkName: st.dform.linkName,
+      dfSetLinkName: e => this.patchDForm({ linkName: e.target.value }),
       saveDish: () => this.saveDish(),
       editDish: () => this.openDishForm(st.detailId),
       newDish: () => this.openDishForm(null),
@@ -2473,6 +2780,7 @@ class Component extends DCLogic {
       })),
       libList: kw ? searchRows : libSorted.map(d => ({
         cn: d.cn, kind: '菜谱', kindBg: '#f2c572', kindFg: '#7a4413',
+        thumbBg: this.thumbBgOf(d),
         meta: dishMeta(d),
         gapLabel: d.days + ' 天\n没吃',
         gapColor: d.days >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -2485,6 +2793,15 @@ class Component extends DCLogic {
       dishShots: this.gallery('dish-' + detail.id + '-p',
         ['dish-' + detail.id + '-a', 'dish-' + detail.id + '-b', 'dish-' + detail.id + '-c'], 6),
       detailIng: detail.ing || [], detailRecipe: detail.recipe || '还没存菜谱', detailDates: detail.dates || [],
+      detailRecipeText: detail.recipe || '',
+      hasRecipeText: !!(detail.recipe && detail.recipe.trim()),
+      hasRecipeLink: !!(detail.link && /^https?:\/\//i.test(detail.link.trim())),
+      noRecipe: !(detail.recipe && detail.recipe.trim()) && !(detail.link && detail.link.trim()),
+      detailLink: (detail.link || '').trim(),
+      detailLinkLabel: detail.linkName || detail.recipe || '收藏的帖子 / 视频',
+      detailLinkHost: (() => {
+        try { return new URL((detail.link || '').trim()).hostname.replace(/^www\./, ''); } catch (e) { return '点开跳转'; }
+      })(),
       detailStats: isCook
         ? [{ k: '吃过', v: detail.times + ' 次' }, { k: '上次', v: detail.days + ' 天前' },
            { k: '热量 / 份', v: detail.kcal ? detail.kcal + ' kcal' : '还没填' },
@@ -2493,7 +2810,7 @@ class Component extends DCLogic {
            { k: '你的评分', v: detail.score.toFixed(1) }, { k: '一次花费', v: this.money(detail.cost) }],
       wantLabel: wanted ? '已在想吃清单' : '想吃',
       addWant: () => this.toggleWant(detail.id),
-      logDish: () => this.go('diary', { justLogged: true }),
+      logDish: () => this.logDishNow(detail),
 
       restSpend: this.money(totalSpend), restVisits: totalVisits,
       restCuisines: REST_CUISINES.map(c => ({
@@ -2517,7 +2834,7 @@ class Component extends DCLogic {
           line: x.cuisine + ' · ' + this.travelLine(x) + ' · 人均 ' + this.money(x.avg),
           chips: [this.bandOf(x.avg)]
             .concat(x.deliveryOnly ? ['只做外卖'] : x.delivery ? ['可外卖'] : ['只堂食'])
-            .concat(x.travel >= 999 ? ['要坐飞机'] : x.travel > 0 ? [x.travel + ' 分钟'] : [])
+            .concat(this.travelChip(x))
             .concat(vs.length ? ['花了 ' + this.money(vs.reduce((s, v) => s + v.amt, 0))] : []),
           onOpen: () => this.go('restDetail', { restId: x.id })
         };
@@ -2534,6 +2851,22 @@ class Component extends DCLogic {
         if (st.here) u += '&origin=' + st.here[0] + ',' + st.here[1];
         return u;
       })(),
+      restHasDelivery: !!(r && (r.delivery || r.deliveryOnly)),
+      restDeliveryLinks: (() => {
+        if (!r) return [];
+        const q = encodeURIComponent([r.cn, r.en].filter(Boolean)[0] || '');
+        const ok = u => u && /^https?:\/\//i.test(u.trim());
+        return [
+          { label: ok(r.uber) ? 'Uber Eats' : '在 Uber Eats 搜',
+            url: ok(r.uber) ? r.uber.trim() : 'https://www.ubereats.com/gb/search?q=' + q,
+            bg: '#3a2617', fg: '#fdf8ee' },
+          { label: ok(r.deliveroo) ? 'Deliveroo' : '在 Deliveroo 搜',
+            url: ok(r.deliveroo) ? r.deliveroo.trim() : 'https://deliveroo.co.uk/search?q=' + q,
+            bg: '#f2c572', fg: '#7a4413' }
+        ];
+      })(),
+      restDeliveryHint: r && (r.uber || r.deliveroo) ? '存的是这家店的链接，点开直接进店'
+        : '还没存链接 —— 在「编辑」里粘进去，以后就一步到店',
       restLine: r.cuisine + ' · ' + r.city + ' · ' + this.travelLine(r),
       restDishes: this.dishesOf(r.id).map(d => ({
         cn: d.cn, meta: dishMeta(d),
@@ -2542,7 +2875,7 @@ class Component extends DCLogic {
       restNoDishes: this.dishesOf(r.id).length === 0,
       restChips: [this.bandOf(r.avg) + ' · 人均 ' + this.money(r.avg)]
         .concat(r.deliveryOnly ? ['只做外卖'] : r.delivery ? ['堂食 / 外卖都行'] : ['只堂食'])
-        .concat(r.travel >= 999 ? ['要坐飞机'] : r.travel > 0 ? ['距离 ' + r.travel + ' 分钟'] : ['外卖送达']),
+        .concat(this.travelChip(r)),
       restStats: [
         { k: '打卡次数', v: rVisits.length + ' 次' },
         { k: '在这家花了', v: this.money(rSpend) },
@@ -2577,10 +2910,27 @@ class Component extends DCLogic {
       formAmountAlt: altCur.sym + (altCur.dp === 0 ? Math.round(fgbp * altCur.rate) : (fgbp * altCur.rate).toFixed(2)) + ' ' + altCur.code,
       amtMinus: () => this.patchForm({ amt: Math.max(0, st.form.amt - (CUR[st.cur].dp === 0 ? 10 : 1)) }),
       amtPlus: () => this.patchForm({ amt: st.form.amt + (CUR[st.cur].dp === 0 ? 10 : 1) }),
+      formIsDelivery: st.form.mode === '外卖',
+      formWaitLabel: (st.form.wait || this.etaOf(r) || 30) + ' 分钟',
+      formWaitHint: (() => {
+        const avg = this.etaAvgOf(r);
+        return avg ? '这家过去 ' + avg.n + ' 次平均 ' + avg.m + ' 分钟 —— 记下来，推荐里就用真实数字'
+          : '记一次真实等待时间，以后推荐就按你自己的经验算';
+      })(),
+      waitMinus: () => this.patchForm({ wait: Math.max(5, (st.form.wait || this.etaOf(r) || 30) - 5) }),
+      waitPlus: () => this.patchForm({ wait: (st.form.wait || this.etaOf(r) || 30) + 5 }),
       formShots: this.gallery('checkin-' + r.id + '-' + st.form.dayOffset + '-p',
         ['checkin-' + r.id + '-1', 'checkin-' + r.id + '-2'], 20),
       formNote: st.form.note,
-      noteChips: NOTE_CHIPS.map(n => ({ label: n, onPick: () => this.patchForm({ note: n }) })),
+      setFormNote: e => this.patchForm({ note: e.target.value }),
+      noteChips: NOTE_CHIPS.map(n => ({
+        label: n,
+        // 点现成句子是「补一句」，不覆盖已经写好的
+        onPick: () => {
+          const cur = (this.state.form.note || '').trim();
+          this.patchForm({ note: cur && cur !== n ? cur + '；' + n : n });
+        }
+      })),
       saveCheckin: () => this.saveCheckin(),
       eaters: ['cai', 'guo'].map(w => ({
         label: WHO_NAME[w], onPick: () => this.patchForm({ by: w }),
@@ -2687,6 +3037,20 @@ class Component extends DCLogic {
 
       streak: 6,
       week: weekCells,
+      hasFest: this.festsOn(sel.y, sel.m, sel.d).length > 0,
+      festLabel: this.festsOn(sel.y, sel.m, sel.d).join(' · ') + ' —— 今天值得吃点好的',
+      festList: (st.fests || []).map(f => ({
+        name: f.name,
+        when: parseInt(f.md.slice(0, 2), 10) + '月' + parseInt(f.md.slice(3), 10) + '日' + (f.y ? ' · 从 ' + f.y + ' 年起' : ''),
+        onRemove: () => this.setState({ fests: st.fests.filter(x => x.id !== f.id) })
+      })),
+      festNone: (st.fests || []).length === 0,
+      ff: st.festForm, festMsg: st.festMsg, hasFestMsg: !!st.festMsg,
+      ffSetName: e => this.setState({ festForm: Object.assign({}, st.festForm, { name: e.target.value }), festMsg: '' }),
+      ffSetM: e => this.setState({ festForm: Object.assign({}, st.festForm, { m: e.target.value }), festMsg: '' }),
+      ffSetD: e => this.setState({ festForm: Object.assign({}, st.festForm, { d: e.target.value }), festMsg: '' }),
+      ffSetY: e => this.setState({ festForm: Object.assign({}, st.festForm, { y: e.target.value }), festMsg: '' }),
+      addFest: () => this.addFest(),
       wdNames: WDN,
       monthCells: monthCells,
       calLabel: st.calY + '年' + st.calM + '月',

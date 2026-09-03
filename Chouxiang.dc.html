@@ -16,12 +16,13 @@
 @keyframes cx-shiver{0%,100%{transform:translateX(-1.2%) rotate(-1.5deg)}50%{transform:translateX(1.2%) rotate(1.5deg)}}
 @keyframes cx-sleep{0%,100%{transform:scale(1)}50%{transform:scale(1.02,.985)}}
 @keyframes cx-swayshy{0%,100%{transform:rotate(-2.2deg) translateY(0)}50%{transform:rotate(2.2deg) translateY(-1%)}}
+@keyframes cx-chew{0%,100%{transform:scale(1,1) translateY(0)}25%{transform:scale(1.02,.97) translateY(.8%)}60%{transform:scale(.99,1.02) translateY(-.8%)}}
 </style></helmet>
 <div style="width:100%;height:100%;display:grid;place-items:center">
 <img src="{{ src }}" alt="{{ alt }}" style="{{ imgStyle }}">
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:280,&quot;height&quot;:280},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;still&quot;,&quot;thinking&quot;,&quot;spinning&quot;,&quot;confused&quot;,&quot;success&quot;,&quot;excited&quot;,&quot;like&quot;,&quot;giggle&quot;,&quot;checkin&quot;,&quot;love&quot;,&quot;shy&quot;,&quot;enjoy&quot;,&quot;bored&quot;,&quot;spicy&quot;,&quot;clap&quot;,&quot;cry&quot;,&quot;dizzy&quot;,&quot;evil&quot;,&quot;calm&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;animate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;base&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;assets/cx-&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:280,&quot;height&quot;:280},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;still&quot;,&quot;thinking&quot;,&quot;spinning&quot;,&quot;confused&quot;,&quot;success&quot;,&quot;excited&quot;,&quot;like&quot;,&quot;giggle&quot;,&quot;checkin&quot;,&quot;love&quot;,&quot;shy&quot;,&quot;enjoy&quot;,&quot;bored&quot;,&quot;spicy&quot;,&quot;clap&quot;,&quot;cry&quot;,&quot;dizzy&quot;,&quot;evil&quot;,&quot;calm&quot;,&quot;eat&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;animate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;base&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;assets/cx-&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 const A = {
   idle:     { img: 'main',    anim: 'cx-breathe 3.6s ease-in-out infinite', alt: '臭翔在轻轻呼吸' },
   still:    { img: 'main',    anim: 'none',                                 alt: '臭翔' },
@@ -42,7 +43,8 @@ const A = {
   shy:      { img: 'want',      anim: 'cx-swayshy 2.4s ease-in-out infinite', alt: '臭翔害羞地戳手指' },
   enjoy:    { img: 'enjoy',     anim: 'cx-breathe 4.2s ease-in-out infinite', alt: '臭翔吃得很满足' },
   bored:    { img: 'liedown',   anim: 'cx-sleep 4.5s ease-in-out infinite',   alt: '臭翔躺平了，腻了' },
-  spicy:    { img: 'spicy',     anim: 'cx-shiver .35s ease-in-out infinite',  alt: '臭翔被辣到了' }
+  spicy:    { img: 'spicy',     anim: 'cx-shiver .35s ease-in-out infinite',  alt: '臭翔被辣到了' },
+  eat:      { img: 'eat',       anim: 'cx-chew .62s ease-in-out infinite',    alt: '臭翔在大口大口地吃' }
 };
 
 class Component extends DCLogic {
