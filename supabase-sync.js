@@ -31,7 +31,8 @@
     }
     return c;
   }
-  function meta() { return readJSON(META_KEY, { hashes: {}, photos: {}, pulledAt: null }); }
+  function meta() { return readJSON(META_KEY, { hashes: {}, photos: {}, gone: {}, pulledAt: null }); }
+  function goneOf(m) { if (!m.gone) m.gone = {}; return m.gone; }
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h + ':' + s.length; };
 
   async function getClient() {
@@ -169,16 +170,15 @@
       const m = meta();
       const out = {};
       const wanted = [];
+      const gone = goneOf(m);
       let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
-        // 删除行也必须交给页面。旧逻辑在这里直接 return，导致 applyRows 永远
-        // 收不到 tombstone，云端删除后本地对象就可能被下一次同步重新加入。
-        out[r.key] = {
-          kind: r.kind, who: r.who, payload: r.deleted ? {} : r.payload,
-          mine: r.owner === me.id, deleted: !!r.deleted
-        };
-        if (r.deleted) return;
+        // 云端已确认删除 → 本地清单里这条可以销案了
+        if (r.deleted) { delete gone[r.key]; return; }
+        // 本地删过但云端还没落地 → 这轮绝不往回装，等 push 去补删
+        if (gone[r.key]) return;
+        out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
         if (r.kind === 'photos') {
           sawManifest = true;
           (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
@@ -212,8 +212,12 @@
         });
         m.hashes[k] = h;
       });
-      // 我自己删掉的行，云端标记删除
-      const gone = Object.keys(m.hashes).filter(k => !rows[k] && m.hashes[k] !== '__deleted' && this.ownKey(k));
+      // 本地已经没有的行 → 云端标记删除。合并「本次发现的」和「历史欠账的」
+      const goneMap = goneOf(m);
+      Object.keys(m.hashes).forEach(k => {
+        if (!rows[k] && m.hashes[k] !== '__deleted') goneMap[k] = goneMap[k] || Date.now();
+      });
+      const gone = Object.keys(goneMap).filter(k => !rows[k]);
       gone.forEach(k => {
         up.push({ key: k, kind: k.split(':')[0], who: this.who(), owner: me.id, payload: {}, deleted: true, updated_at: new Date().toISOString() });
         m.hashes[k] = '__deleted';
@@ -233,15 +237,16 @@
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
     async markDeleted(keys, photoIds) {
       const sb = await getClient();
-      if (!sb || !me || !keys || !keys.length) return false;
+      if (!sb || !me || !keys || !keys.length) return;
       const m = meta();
       const up = keys.map(k => ({
         key: k, kind: k.split(':')[0], who: this.who(), owner: me.id,
         payload: {}, deleted: true, updated_at: new Date().toISOString()
       }));
       const { error } = await sb.from(TABLE).upsert(up, { onConflict: 'key' });
-      if (error) { emit(classify(error)); return false; }
-      keys.forEach(k => { m.hashes[k] = '__deleted'; });
+      if (error) { emit(classify(error)); return; }
+      const gm = goneOf(m);
+      keys.forEach(k => { m.hashes[k] = '__deleted'; gm[k] = Date.now(); });
       // 顺手把照片从桶里删掉，别让对方再拉一遍
       if (photoIds && photoIds.length) {
         try { await sb.storage.from(BUCKET).remove(photoIds.map(id => id + '.webp')); } catch (e) {}
@@ -249,7 +254,6 @@
       }
       writeJSON(META_KEY, m);
       emit({ status: 'online', message: '删除已同步', lastSync: Date.now() });
-      return true;
     },
 
     // 我能删的行：菜谱 / 餐厅是两个人共用的，带对方名字的记录行不许我碰
@@ -350,9 +354,10 @@
           try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
         }
         if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
+        // 先推：把本地的删除/改动落到云端，再拉才不会把刚删的又拉回来
+        await this.pushRows(rows());
         const remote = await this.pullRows();
         if (remote && applyRemote) applyRemote(remote);
-        await this.pushRows(rows());
         this.live();
       } catch (e) {
         emit(classify(e));
