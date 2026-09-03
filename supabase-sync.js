@@ -275,7 +275,7 @@
       if (!this.configured()) return;
       try {
         await getClient();
-        if (!me) { emit({ status: 'off', message: '还没登录' }); return; }
+        if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
         const remote = await this.pullRows();
         if (remote && applyRemote) applyRemote(remote);
         await this.pushRows(rows());
@@ -283,6 +283,45 @@
       } catch (e) {
         emit(classify(e));
       }
+    },
+
+    // 自检：一步步定位到底卡在哪儿，直接给出能照抄的修复 SQL
+    async diagnose() {
+      const c = cfg();
+      if (!c.url || !c.key) return { ok: false, why: '还没填 Supabase 地址和 key。' };
+      let sb;
+      try { sb = await getClient(); } catch (e) { return { ok: false, why: '连不上 Supabase：' + (e.message || e) }; }
+      if (!sb) return { ok: false, why: 'Supabase 客户端没起来，检查一下地址是不是 https://xxx.supabase.co。' };
+      if (!me) {
+        try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
+      }
+      if (!me) return { ok: false, why: '还没登录。用菜菜或果果的邮箱密码登录一次。' };
+      const uid = me.id;
+      // 白名单
+      const wl = await sb.from('allowed_users').select('uid, name');
+      if (wl.error) {
+        if (/does not exist|relation/i.test(wl.error.message)) {
+          return { ok: false, why: 'allowed_users 表还没建 —— 那段 SQL 没跑成功。回 Supabase 的 SQL Editor 重跑一次。', uid: uid };
+        }
+        return { ok: false, why: '读白名单被拦住了：' + wl.error.message, uid: uid };
+      }
+      const mine = (wl.data || []).some(r => String(r.uid) === String(uid));
+      if (!mine) {
+        return {
+          ok: false, uid: uid,
+          why: '你的账号不在白名单里，所以云端不给读写。回 Supabase 的 SQL Editor 跑下面这一行就好：',
+          sql: "insert into allowed_users values ('" + uid + "','" + (localStorage.getItem(WHO_KEY) === 'guo' ? '果果' : '菜菜') + "');"
+        };
+      }
+      // 读
+      const rd = await sb.from(TABLE).select('key').limit(1);
+      if (rd.error) return { ok: false, uid: uid, why: '读 entries 被拦住了：' + rd.error.message };
+      // 写
+      const probe = { key: '__probe__' + uid.slice(0, 8), kind: 'probe', who: 'probe', owner: uid, payload: {}, deleted: true, updated_at: new Date().toISOString() };
+      const wr = await sb.from(TABLE).upsert(probe, { onConflict: 'key' });
+      if (wr.error) return { ok: false, uid: uid, why: '写 entries 被拦住了：' + wr.error.message };
+      try { await sb.from(TABLE).delete().eq('key', probe.key); } catch (e) {}
+      return { ok: true, uid: uid, why: '一切正常：登录、白名单、读、写都通了。' };
     },
 
     async pushQuiet(rows) {
