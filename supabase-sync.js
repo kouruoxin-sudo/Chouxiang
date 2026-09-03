@@ -168,10 +168,22 @@
       if (error) throw error;
       const m = meta();
       const out = {};
+      const wanted = [];
+      let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
-        if (!r.deleted) out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
+        if (r.deleted) return;
+        out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
+        if (r.kind === 'photos') {
+          sawManifest = true;
+          (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
+        }
       });
+      // 本机刚拍还没推上去的照片也算「要保留」，不然会被误删
+      (window.PhotoStore && window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
+        if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
+      });
+      m.wanted = sawManifest ? wanted : null;
       m.pulledAt = Date.now();
       writeJSON(META_KEY, m);
       await this.pullPhotos();
@@ -247,12 +259,24 @@
       if (!sb || !window.PhotoStore) return;
       await window.PhotoStore.ready();
       const local = window.PhotoStore.all();
+      const m0 = meta();
+      const synced = m0.photos || {};
+      // 云端清单（两个人的合集）就是真相：清单里没有、但本机同步过的 → 是被谁删了
+      const wanted = m0.wanted || null;
+      if (wanted) {
+        const keep = {};
+        wanted.forEach(id => { keep[id] = 1; });
+        Object.keys(local).forEach(id => {
+          if (!keep[id] && synced[id]) window.PhotoStore.set(id, null);
+        });
+      }
       const { data: files, error } = await sb.storage.from(BUCKET).list('', { limit: 1000 });
       if (error) { state.photoErr = '读照片桶失败：' + error.message; throw error; }
       state.photoErr = '';
       for (const f of files || []) {
         const id = f.name.replace(/\.webp$/, '');
-        if (local[id]) continue;
+        if (window.PhotoStore.get(id)) continue;
+        if (wanted && wanted.indexOf(id) < 0) continue;
         const { data: blob } = await sb.storage.from(BUCKET).download(f.name);
         if (blob) await window.PhotoStore.set(id, await blobToDataUrl(blob));
       }
@@ -261,6 +285,22 @@
     async pushPhotos() {
       const sb = await getClient();
       if (!sb || !window.PhotoStore) return;
+      // 桶里有、但两个人的清单里都没有的文件 → 已经被删了，清掉
+      const mm = meta();
+      const wanted = mm.wanted;
+      if (wanted) {
+        const keep = {};
+        wanted.forEach(id => { keep[id] = 1; });
+        const ls = await sb.storage.from(BUCKET).list('', { limit: 1000 });
+        const orphans = (ls.data || [])
+          .map(f => f.name.replace(/\.webp$/, ''))
+          .filter(id => id !== '__probe' && !keep[id]);
+        if (orphans.length) {
+          await sb.storage.from(BUCKET).remove(orphans.map(id => id + '.webp'));
+          orphans.forEach(id => { if (mm.photos) delete mm.photos[id]; });
+          writeJSON(META_KEY, mm);
+        }
+      }
       await window.PhotoStore.ready();
       const m = meta();
       const local = window.PhotoStore.all();

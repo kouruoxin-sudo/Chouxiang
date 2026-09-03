@@ -45,6 +45,8 @@
     all: () => Object.assign({}, cache),
     get: id => cache[id] || null,
     stampOf: id => (meta[id] && meta[id].t) || null,
+    // 供同步用：这台设备现在有哪些照片
+    ids: () => Object.keys(cache),
     set(id, url) {
       if (url) { cache[id] = url; stampNow(id); saveMeta(); }
       else { delete cache[id]; delete meta[id]; saveMeta(); }

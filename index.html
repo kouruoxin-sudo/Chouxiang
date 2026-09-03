@@ -34,6 +34,8 @@
 <style>
 /* 输入框字号不到 16px 时 iOS 会自动放大页面，放大后就再也回不去了 */
 input, textarea, select { font-size: 16px !important; }
+/* 键盘弹出时把焦点元素滚进可视区，靠内部滚动容器完成，不动文档 */
+@media (max-width:720px){ input, textarea { scroll-margin: 90px 0 120px; } }
 </style>
 <link rel="manifest" href="./manifest.json">
 <script src="./photo-slot.js"></script>
@@ -51,7 +53,10 @@ body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,san
   --cx-photo-btn:66px; --cx-photo-btn-lg:62px;
 }
 @media (max-width:720px){
-  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  /* 整页钉死在视口上：文档层面没有可滚动的东西，键盘就顶不动它 */
+  html{height:100%;overflow:hidden;overscroll-behavior:none}
+  body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;
+       overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
   body{background:#fdf8ee}
   .cx-shell{padding:0!important;gap:0!important;flex-wrap:nowrap!important}
   .cx-shell>div{gap:0!important;width:100%}
@@ -1696,8 +1701,11 @@ class Component extends DCLogic {
       });
     });
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
-    // 自己删掉的东西记成墓碑，保证删除一定会推上去
     (st.gone || []).forEach(k => { delete out[k]; });
+    // 照片清单：这台设备现在有哪些照片。清单里没有的就是被删了，删除靠它同步
+    if (window.PhotoStore && window.PhotoStore.ids) {
+      out['photos:' + who] = { kind: 'photos', who: who, payload: { ids: window.PhotoStore.ids().sort() } };
+    }
     out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
@@ -2551,7 +2559,7 @@ class Component extends DCLogic {
       });
     }
     if (window.CloudSync && window.CloudSync.markDeleted) {
-      window.CloudSync.markDeleted([key], shots);
+      window.CloudSync.markDeleted([key]);
     }
     setTimeout(() => this.cloudSync(), 400);
   }
