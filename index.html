@@ -25,13 +25,18 @@
     var h = vv ? vv.height : inner;
     if (inner) h = Math.min(h, inner);
     root.style.setProperty('--cx-vh', h + 'px');
+  };
+
+  // 页面归位：只在开页/切回/转屏时做，
+  // 绝不在点击、聚焦时做——否则点下半屏的按钮会把页面跳到顶部。
+  var gohome = function () {
     if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
     if (root.scrollTop) root.scrollTop = 0;
     if (document.body.scrollTop) document.body.scrollTop = 0;
   };
 
   // 真正把界面顶上去的往往是内层滚动容器（浏览器为露出某个元素滑了它）
-  var topAll = function () {
+  var resettops = function () {
     var all = document.querySelectorAll('div,section,main,ul');
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
@@ -40,10 +45,10 @@
   };
 
   var later = function () {
-    apply(); topAll();
-    setTimeout(function () { apply(); topAll(); }, 80);
-    setTimeout(function () { apply(); topAll(); }, 320);
-    setTimeout(function () { apply(); topAll(); }, 800);
+    apply(); gohome(); resettops();
+    setTimeout(function () { apply(); gohome(); resettops(); }, 80);
+    setTimeout(function () { apply(); gohome(); resettops(); }, 320);
+    setTimeout(function () { apply(); gohome(); resettops(); }, 800);
   };
 
   var remember = function (el) {
@@ -95,11 +100,10 @@ body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,san
   --cx-photo-btn:66px; --cx-photo-btn-lg:62px;
 }
 @media (max-width:720px){
-  /* 整页钉死在视口上：文档层面没有可滚动的东西，键盘就顶不动它 */
-  html{height:100vh;height:100svh;overflow:hidden;overscroll-behavior:none}
-  /* top 用可视视口偏移补偿：键盘把视口推上去多少，body 就往下挪回来多少 */
-  body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:auto;
-       overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
+  /* 不再把文档钉死：万一浏览器把页面顶上去了，手指至少能滑回来 */
+  html{height:auto;min-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  body{position:static;width:100%;min-height:100svh;
+       overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
   body{background:#fdf8ee}
   .cx-shell{padding:0!important;gap:0!important;flex-wrap:nowrap!important}
   .cx-shell>div{gap:0!important;width:100%}

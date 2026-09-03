@@ -382,13 +382,9 @@
         if (st > (pdead[id] || 0)) return;
         window.PhotoStore.set(id, null);
       });
-      if (wanted) {
-        const keep = {};
-        wanted.forEach(id => { keep[id] = 1; });
-        Object.keys(local).forEach(id => {
-          if (!keep[id] && synced[id]) window.PhotoStore.set(id, null);
-        });
-      }
+      // 删除只认全局删除名单。
+      // （以前靠「两人清单并集里没有就算删了」反推，对方清单晚到一拍就会把刚传的照片抹掉。）
+      if (false) {}
       const { data: files, error } = await sb.storage.from(BUCKET).list('', { limit: 1000 });
       if (error) { state.photoErr = '读照片桶失败：' + error.message; throw error; }
       state.photoErr = '';
@@ -396,7 +392,7 @@
       if (!m1.pfiles) m1.pfiles = {};
       for (const f of files || []) {
         const id = f.name.replace(/\.webp$/, '');
-        if (wanted && wanted.indexOf(id) < 0) continue;
+        // 桶里有的就拉下来（除了被删的）——不再看清单，对方清单晚到不影响照片到货
         if (pdead[id]) continue;
         // 同一个 id 被对方换成了新照片 → 桶里的时间戳会变，那就重新下一遍
         const stamp = f.updated_at || (f.metadata && f.metadata.lastModified) || '';
@@ -407,18 +403,13 @@
           m1.pfiles[id] = stamp;
         }
       }
-      // 桶里有、两人清单都没有的文件 → 已被删除。
-      // 这一步必须用刚算出来的新清单，用旧清单会误删对方刚传的照片
-      if (wanted) {
-        const keep2 = {};
-        wanted.forEach(id => { keep2[id] = 1; });
-        const orphans = (files || [])
-          .map(f => f.name.replace(/\.webp$/, ''))
-          .filter(id => id !== '__probe' && !keep2[id]);
-        if (orphans.length) {
-          try { await sb.storage.from(BUCKET).remove(orphans.map(id => id + '.webp')); } catch (e) {}
-          orphans.forEach(id => { if (m1.photos) delete m1.photos[id]; delete m1.pfiles[id]; });
-        }
+      // 桶内只清理明确被删的文件，不拿清单反推（会误删对方刚传的）
+      const orphans = (files || [])
+        .map(f => f.name.replace(/\.webp$/, ''))
+        .filter(id => id !== '__probe' && pdead[id]);
+      if (orphans.length) {
+        try { await sb.storage.from(BUCKET).remove(orphans.map(id => id + '.webp')); } catch (e) {}
+        orphans.forEach(id => { if (m1.photos) delete m1.photos[id]; delete m1.pfiles[id]; });
       }
       writeJSON(META_KEY, m1);
       window.CloudSync.__quiet = false;
