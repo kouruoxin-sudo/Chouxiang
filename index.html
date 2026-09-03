@@ -249,8 +249,11 @@ a{color:#8c491a}a:hover{color:#b2622d}
   <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px var(--cx-bot);display:flex;flex-direction:column;gap:12px">
     <sc-for list="{{ libList }}" as="d" hint-placeholder-count="6">
       <button onClick="{{ d.onOpen }}" style="display:flex;align-items:center;gap:14px;text-align:left;padding:12px;border:none;border-radius:26px;background:#f6ecd8;cursor:pointer" style-hover="background:#f2c572">
-        <span style="width:66px;height:66px;flex:none;border-radius:20px;overflow:hidden;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)">
-          <span style="display:block;width:100%;height:100%;background-size:cover;background-position:center;background-image:{{ d.thumbBg }}"></span>
+        <span style="position:relative;width:66px;height:66px;flex:none;border-radius:20px;overflow:hidden;background:#e4d6bb;background-image:repeating-linear-gradient(135deg,rgba(32,30,29,.07) 0 5px,transparent 5px 11px)">
+          <sc-if value="{{ d.noThumb }}" hint-placeholder-val="{{ true }}">
+            <span style="position:absolute;inset:0;display:grid;place-items:center;padding:7px;box-sizing:border-box;opacity:.85"><dc-import name="Chouxiang" state="still" hint-size="52px,52px"></dc-import></span>
+          </sc-if>
+          <span style="position:absolute;inset:0;background-size:cover;background-position:center;background-image:{{ d.thumbBg }}"></span>
         </span>
         <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
           <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
@@ -355,7 +358,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
           <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
         </sc-for>
       </div>
-      <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">每次「记一笔」传的照片都攒在这儿，点开看大图</span>
+      <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">每次「记一笔」传的照片都攒在这儿。{{ dishCoverHint }}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:9px">
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">备注</span>
@@ -1673,7 +1676,8 @@ class Component extends DCLogic {
     diag: null, diagging: false, diagCopied: false,
     fests: [{ id: 'f-demo', name: '我们在一起', md: '03-14', y: 2023 }],
     festForm: { name: '', m: '', d: '', y: '' }, festMsg: '',
-    clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true }
+    clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true },
+    covers: {}
   };
 
   meWho() { return this.state.who || 'cai'; }
@@ -1692,7 +1696,7 @@ class Component extends DCLogic {
       });
     });
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
-    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests } };
+    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
 
@@ -1748,6 +1752,7 @@ class Component extends DCLogic {
       if (p.lowBand != null) patch.lowBand = p.lowBand;
       if (p.highBand != null) patch.highBand = p.highBand;
       if (p.fests) patch.fests = p.fests;
+      if (p.covers) patch.covers = Object.assign({}, this.state.covers, p.covers);
     }
     if (Object.keys(patch).length) this.setState(patch);
     this.forceUpdate();
@@ -1998,7 +2003,7 @@ class Component extends DCLogic {
     return {
       dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
       visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, cur: st.cur,
-      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests
+      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers
     };
   }
 
@@ -2014,7 +2019,8 @@ class Component extends DCLogic {
       cur: data.cur != null ? data.cur : this.state.cur,
       lowBand: data.lowBand != null ? data.lowBand : this.state.lowBand,
       highBand: data.highBand != null ? data.highBand : this.state.highBand,
-      fests: data.fests || this.state.fests
+      fests: data.fests || this.state.fests,
+      covers: data.covers || this.state.covers
     });
   }
 
@@ -2169,6 +2175,7 @@ class Component extends DCLogic {
   componentWillUnmount() {
     clearTimeout(this.timer); clearTimeout(this.sayTimer); clearTimeout(this.saveTimer); clearTimeout(this.cloudTimer);
     window.removeEventListener('place-pick', this.onPlace);
+    window.removeEventListener('photo-cover', this.onCover);
     document.removeEventListener('pointerdown', this.onTapSound, true);
     window.removeEventListener('online', this.onOnline);
     this.unsubCloud && this.unsubCloud();
@@ -2222,6 +2229,16 @@ class Component extends DCLogic {
       this.patchRForm({ lat: e.detail.lat, lon: e.detail.lon, city: e.detail.city || this.state.rform.city });
     };
     window.addEventListener('place-pick', this.onPlace);
+    // 大图里点「设为封面」：按当前页面决定是给菜还是给店设的
+    this.onCover = e => {
+      const id = e.detail && e.detail.id;
+      if (!id) return;
+      const st = this.state;
+      const owner = st.screen === 'restDetail' ? 'rest:' + st.restId : 'dish:' + st.detailId;
+      this.setCover(owner, id);
+      this.toast && this.toast('封面换好了');
+    };
+    window.addEventListener('photo-cover', this.onCover);
     // 上次手动指过位置就先用它，再让 GPS 有机会覆盖
     try {
       const saved = JSON.parse(localStorage.getItem('cx-here'));
@@ -2425,15 +2442,23 @@ class Component extends DCLogic {
     return u ? 'url("' + u + '")' : 'none';
   }
 
-  // 列表缩略图：成品照 → 菜谱截图 → 打卡照片，凡是这道菜名下的图都算
+  // 缩略图：你指定的封面 → 成品照 → 菜谱截图 → 打卡照片
+  // 全部按「这道菜的 id」自动匹配，不用你改文件名
   thumbOf(d) {
     if (!window.PhotoStore || !d) return '';
     const all = window.PhotoStore.all();
+    const covers = this.state.covers || {};
+    if (covers['dish:' + d.id] && all[covers['dish:' + d.id]]) return all[covers['dish:' + d.id]];
     if (all['dish-' + d.id]) return all['dish-' + d.id];
     if (all['dish-photo-' + d.id]) return all['dish-photo-' + d.id];
-    const pre = ['dish-' + d.id, 'dish-photo-' + d.id, 'dish-recipe-' + d.id, 'dishlog-' + d.id];
+    const pre = ['dish-' + d.id + '-', 'dish-recipe-' + d.id, 'dishlog-' + d.id + '-'];
     const keys = Object.keys(all).filter(k => pre.some(p => k.indexOf(p) === 0)).sort();
     return keys.length ? all[keys[0]] : '';
+  }
+
+  // 设为封面：谁的封面看当前在哪个页面
+  setCover(ownerKey, photoId) {
+    this.setState({ covers: Object.assign({}, this.state.covers || {}, { [ownerKey]: photoId }) });
   }
 
   // 这道菜历次打卡攒下的照片
@@ -2681,7 +2706,7 @@ class Component extends DCLogic {
         cn: d.cn,
         kind: d.how === 'cook' ? '菜谱' : d.how === 'order' ? '外卖菜' : '堂食菜',
         kindBg: '#f2c572', kindFg: '#7a4413',
-        thumbBg: this.thumbBgOf(d),
+        thumbBg: this.thumbBgOf(d), noThumb: !this.thumbOf(d),
         meta: dishMetaOf(d),
         gapLabel: this.daysOf(d) + ' 天\n没吃',
         gapColor: this.daysOf(d) >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -2925,7 +2950,7 @@ class Component extends DCLogic {
       })),
       libList: kw ? searchRows : libSorted.map(d => ({
         cn: d.cn, kind: '菜谱', kindBg: '#f2c572', kindFg: '#7a4413',
-        thumbBg: this.thumbBgOf(d),
+        thumbBg: this.thumbBgOf(d), noThumb: !this.thumbOf(d),
         meta: dishMeta(d),
         gapLabel: this.daysOf(d) + ' 天\n没吃',
         gapColor: this.daysOf(d) >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -2936,6 +2961,9 @@ class Component extends DCLogic {
       detail: detail, detailMeta: dishMeta(detail), isCook: isCook,
       dishSlot: 'dish-' + detail.id,
       dishLogShots: this.dishLogGallery(detail, 60),
+      dishCoverHint: (this.state.covers || {})['dish:' + detail.id]
+        ? '封面已经指定好了 —— 点开任意一张照片可以换'
+        : '点开照片可以「设为封面」，不指定就用第一张，一张都没有就放臭翔',
       dishShots: this.gallery('dish-' + detail.id + '-p',
         ['dish-' + detail.id + '-a', 'dish-' + detail.id + '-b', 'dish-' + detail.id + '-c'], 6),
       detailIng: detail.ing || [], detailRecipe: detail.recipe || '还没存菜谱', detailDates: detail.dates || [],

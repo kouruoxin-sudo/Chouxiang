@@ -227,7 +227,8 @@
       await window.PhotoStore.ready();
       const local = window.PhotoStore.all();
       const { data: files, error } = await sb.storage.from(BUCKET).list('', { limit: 1000 });
-      if (error) return;
+      if (error) { state.photoErr = '读照片桶失败：' + error.message; throw error; }
+      state.photoErr = '';
       for (const f of files || []) {
         const id = f.name.replace(/\.webp$/, '');
         if (local[id]) continue;
@@ -248,7 +249,9 @@
         if (m.photos[id] === stamp) continue;
         const blob = await dataUrlToBlob(local[id]);
         const { error } = await sb.storage.from(BUCKET).upload(id + '.webp', blob, { upsert: true, contentType: 'image/webp' });
-        if (!error) { m.photos[id] = stamp; n++; }
+        if (error) { state.photoErr = '传照片失败：' + error.message; throw error; }
+        state.photoErr = '';
+        m.photos[id] = stamp; n++;
       }
       writeJSON(META_KEY, m);
       if (n) emit({ message: '又传了 ' + n + ' 张照片' });
@@ -336,10 +339,40 @@
       const wr = await sb.from(TABLE).upsert(probe, { onConflict: 'key' });
       if (wr.error) return { ok: false, uid: uid, why: '写 entries 被拦住了：' + wr.error.message };
       try { await sb.from(TABLE).delete().eq('key', probe.key); } catch (e) {}
+      // 照片桶：列目录 + 传一张 1 像素图 + 删掉
+      const ls = await sb.storage.from(BUCKET).list('', { limit: 1 });
+      if (ls.error) {
+        return {
+          ok: false, uid: uid,
+          why: '数据同步没问题，但照片桶读不了（' + ls.error.message + '）—— 这就是「文字同步了、照片没同步」的原因。把下面这段跑一次：',
+          sql: "insert into storage.buckets (id, name, public) values ('photos','photos',false)\n"
+             + '  on conflict (id) do update set public = false;\n'
+             + 'drop policy if exists "photos read" on storage.objects;\n'
+             + 'drop policy if exists "photos write" on storage.objects;\n'
+             + 'create policy "photos read" on storage.objects for select to authenticated\n'
+             + "  using (bucket_id = 'photos' and auth.uid() in (select uid from allowed_users));\n"
+             + 'create policy "photos write" on storage.objects for all to authenticated\n'
+             + "  using (bucket_id = 'photos' and auth.uid() in (select uid from allowed_users))\n"
+             + "  with check (bucket_id = 'photos' and auth.uid() in (select uid from allowed_users));"
+        };
+      }
+      const tiny = new Blob([new Uint8Array([82,73,70,70])], { type: 'image/webp' });
+      const up2 = await sb.storage.from(BUCKET).upload('__probe.webp', tiny, { upsert: true, contentType: 'image/webp' });
+      if (up2.error) {
+        return {
+          ok: false, uid: uid,
+          why: '照片桶能读但不能写（' + up2.error.message + '）—— 照片同步会卡住。把上面那段照片桶的 SQL 跑一次：',
+          sql: 'drop policy if exists "photos write" on storage.objects;\n'
+             + 'create policy "photos write" on storage.objects for all to authenticated\n'
+             + "  using (bucket_id = 'photos' and auth.uid() in (select uid from allowed_users))\n"
+             + "  with check (bucket_id = 'photos' and auth.uid() in (select uid from allowed_users));"
+        };
+      }
+      try { await sb.storage.from(BUCKET).remove(['__probe.webp']); } catch (e) {}
       // 自检通过就把状态一并翻成已连接，别让界面还停在「还没连云端」
       emit({ status: 'online', message: '自检通过 · 已连上云端', lastSync: Date.now(), pending: 0 });
       this.live();
-      return { ok: true, uid: uid, why: '一切正常：登录、白名单、读、写都通了。' };
+      return { ok: true, uid: uid, why: '一切正常：登录、白名单、数据读写、照片桶读写都通了。' };
     },
 
     async pushQuiet(rows) {

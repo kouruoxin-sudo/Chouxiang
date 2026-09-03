@@ -81,7 +81,7 @@
 
   // ── 大图查看器 ────────────────────────────────────────
   let lb = null;
-  function lightbox(urls, index) {
+  function lightbox(urls, index, ids) {
     if (!urls.length) return;
     let i = Math.max(0, Math.min(index || 0, urls.length - 1));
     if (!lb) {
@@ -98,9 +98,13 @@
           'border-radius:999px;background:rgba(253,248,238,.86);color:#8c491a;font:800 19px/1 Nunito,sans-serif;cursor:pointer">‹</button>' +
         '<button data-n type="button" aria-label="下一张" style="position:absolute;right:12px;width:46px;height:46px;border:none;' +
           'border-radius:999px;background:rgba(253,248,238,.86);color:#8c491a;font:800 19px/1 Nunito,sans-serif;cursor:pointer">›</button>' +
-        '<span data-c style="position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);' +
-          'padding:7px 15px;border-radius:999px;background:rgba(253,248,238,.9);' +
-          'font:800 12px/1 Nunito,"Noto Sans SC",sans-serif;color:#4b4438"></span>';
+        '<div style="position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:0;right:0;display:flex;' +
+          'align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;padding:0 16px">' +
+          '<span data-c style="padding:7px 15px;border-radius:999px;background:rgba(253,248,238,.9);' +
+            'font:800 12px/1 Nunito,\'Noto Sans SC\',sans-serif;color:#4b4438"></span>' +
+          '<button data-cover type="button" style="min-height:36px;padding:0 16px;border:none;border-radius:999px;' +
+            'background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,\'Noto Sans SC\',sans-serif;cursor:pointer">设为封面</button>' +
+          '</div>';
       document.body.appendChild(lb);
       const close = () => { lb.style.display = 'none'; lb._urls = null; };
       lb.addEventListener('click', e => { if (e.target === lb) close(); });
@@ -112,6 +116,15 @@
       };
       lb.querySelector('[data-p]').addEventListener('click', e => { e.stopPropagation(); step(-1); });
       lb.querySelector('[data-n]').addEventListener('click', e => { e.stopPropagation(); step(1); });
+      lb.querySelector('[data-cover]').addEventListener('click', e => {
+        e.stopPropagation();
+        const id = lb._ids && lb._ids[lb._i];
+        if (!id) return;
+        window.dispatchEvent(new CustomEvent('photo-cover', { detail: { id: id } }));
+        const b = lb.querySelector('[data-cover]');
+        b.textContent = '存好了 · 封面就用它';
+        setTimeout(() => { b.textContent = '设为封面'; }, 1600);
+      });
       document.addEventListener('keydown', e => {
         if (lb.style.display === 'none') return;
         if (e.key === 'Escape') close();
@@ -128,7 +141,7 @@
         x0 = null;
       }, { passive: true });
     }
-    lb._urls = urls; lb._i = i;
+    lb._urls = urls; lb._ids = ids || []; lb._i = i;
     lb.style.display = 'flex';
     paintLb();
   }
@@ -229,13 +242,17 @@
       const url = window.PhotoStore.get(this.id);
       if (!url) return;
       const group = this.getAttribute('data-group');
-      let urls = [url], idx = 0;
+      let urls = [url], ids = [this.id], idx = 0;
       if (group) {
         const sibs = Array.prototype.slice.call(document.querySelectorAll('photo-slot[data-group="' + group + '"]'))
-          .map(el => window.PhotoStore.get(el.id)).filter(Boolean);
-        if (sibs.length) { urls = sibs; idx = Math.max(0, sibs.indexOf(url)); }
+          .filter(el => window.PhotoStore.get(el.id));
+        if (sibs.length) {
+          urls = sibs.map(el => window.PhotoStore.get(el.id));
+          ids = sibs.map(el => el.id);
+          idx = Math.max(0, ids.indexOf(this.id));
+        }
       }
-      window.PhotoStore.view(urls, idx);
+      window.PhotoStore.view(urls, idx, ids);
     }
 
     async _ingestMany(files) {
