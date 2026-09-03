@@ -13,27 +13,6 @@
 <meta name="theme-color" content="#ecb75e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>
-// Safari 有时会把上一次的页面滚动位置恢复到新开的链接里。
-// 只在首次 pageshow 归零几次，不再监听 visualViewport，也不干涉之后的正常滚动。
-(function () {
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  function resetInitialScroll() {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    if (document.body) document.body.scrollTop = 0;
-    const home = document.querySelector('[data-cx-home-scroll]');
-    if (home) home.scrollTop = 0;
-  }
-  window.addEventListener('pageshow', function (event) {
-    if (event.persisted) return;
-    resetInitialScroll();
-    requestAnimationFrame(resetInitialScroll);
-    setTimeout(resetInitialScroll, 80);
-    setTimeout(resetInitialScroll, 240);
-  }, { once: true });
-})();
-</script>
 <style>
 /* 输入框字号不到 16px 时 iOS 会自动放大页面，放大后就再也回不去了 */
 input, textarea, select { font-size: 16px !important; }
@@ -133,7 +112,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atHome }}" hint-placeholder-val="{{ true }}">
-<div data-cx-home-scroll style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
   <div style="position:relative;height:var(--cx-hero);background:#ecb75e;border-radius:0 0 52px 52px;overflow:hidden;flex:none">
     <div style="position:absolute;top:var(--cx-greet);left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(70,44,16,.62)"><span>{{ greeting }}</span><span>{{ todayLabel }}</span></div>
     <button onClick="{{ tapMascot }}" aria-label="敲两下臭翔，他会跟你说话" style="position:absolute;top:var(--cx-masctop);left:50%;transform:translateX(-50%);width:var(--cx-mascot);height:var(--cx-mascot);border:none;background:transparent;padding:0;cursor:pointer"><dc-import name="Chouxiang" state="{{ homeMascot }}" hint-size="372px,372px"></dc-import></button>
@@ -1709,10 +1688,7 @@ class Component extends DCLogic {
     if (window.PhotoStore && window.PhotoStore.ids) {
       out['photos:' + who] = { kind: 'photos', who: who, payload: { ids: window.PhotoStore.ids().sort() } };
     }
-    // 个人设置和两个人共用的清单分开。shared:prefs 是唯一权威快照，
-    // 所以 [] / {} 也是真实状态，删除后不会再被另一份旧清单做并集复活。
-    out['pref:' + who] = { kind: 'pref', who: who, payload: { cur: st.cur, lowBand: st.lowBand, highBand: st.highBand } };
-    out['shared:prefs'] = { kind: 'shared', who: who, payload: { want: st.want, fests: st.fests, covers: st.covers } };
+    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
 
@@ -1791,26 +1767,26 @@ class Component extends DCLogic {
     const pref = map['pref:' + me];
     if (pref && pref.payload) {
       const p = pref.payload;
+      if (p.want) patch.want = p.want;
       if (p.cur != null) patch.cur = p.cur;
       if (p.lowBand != null) patch.lowBand = p.lowBand;
       if (p.highBand != null) patch.highBand = p.highBand;
     }
-    // shared:prefs 是整份替换，不做 union。空数组就是「已经全部删掉」。
-    const sharedRow = map['shared:prefs'];
-    if (sharedRow && !sharedRow.deleted && sharedRow.payload) {
-      const p = sharedRow.payload;
-      patch.fests = Array.isArray(p.fests) ? p.fests : [];
-      patch.covers = p.covers && typeof p.covers === 'object' ? p.covers : {};
-      patch.want = Array.isArray(p.want) ? p.want : [];
-    } else if (full) {
-      // 第一次升级旧云端数据时，用当前账号自己的旧 pref 建立权威快照。
-      const legacy = map['pref:' + me] || map['pref:' + other];
-      const p = legacy && legacy.payload;
-      if (p && ('fests' in p || 'covers' in p || 'want' in p)) {
-        patch.fests = Array.isArray(p.fests) ? p.fests : [];
-        patch.covers = p.covers && typeof p.covers === 'object' ? p.covers : {};
-        patch.want = Array.isArray(p.want) ? p.want : [];
-      }
+    // 纪念日、封面、想吃清单：两个人共用一份，两边的记录都合起来
+    const shared = { fests: [], covers: {}, want: [] };
+    ['pref:' + me, 'pref:' + other].forEach(k => {
+      const p = map[k] && map[k].payload;
+      if (!p) return;
+      (p.fests || []).forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
+      Object.assign(shared.covers, p.covers || {});
+      (p.want || []).forEach(w => { if (shared.want.indexOf(w) < 0) shared.want.push(w); });
+    });
+    if (map['pref:' + me] || map['pref:' + other]) {
+      const mine = this.state.fests || [];
+      mine.forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
+      patch.fests = shared.fests;
+      patch.covers = Object.assign({}, this.state.covers, shared.covers);
+      patch.want = shared.want.length ? shared.want : (patch.want || this.state.want);
     }
     if (Object.keys(patch).length) this.setState(patch);
     this.forceUpdate();
@@ -2857,7 +2833,7 @@ class Component extends DCLogic {
 
     return {
       phoneW: this.state.isPhone ? '100%' : 402,
-      phoneH: this.state.isPhone ? '100dvh' : 874,
+      phoneH: this.state.isPhone ? 'var(--cx-vh, 100svh)' : 874,
       phoneBare: !!this.state.isPhone,
       locked: locked, unlocked: !locked,
       loginEmail: st.loginEmail, loginPw: st.loginPw, loginErr: st.loginErr,

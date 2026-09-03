@@ -170,19 +170,8 @@
       const out = {};
       const wanted = [];
       let sawManifest = false;
-      let sawPhotoState = false;
-      const activePhotos = [];
-      const deletedPhotos = [];
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
-        // 每张照片都有一行独立状态；它比旧的设备照片清单优先。
-        if (r.kind === 'photo' || r.key.indexOf('photo:') === 0) {
-          sawPhotoState = true;
-          const id = (r.payload && r.payload.id) || r.key.slice(6);
-          const box = r.deleted ? deletedPhotos : activePhotos;
-          if (id && box.indexOf(id) < 0) box.push(id);
-          return;
-        }
         // 删除行也必须交给页面。旧逻辑在这里直接 return，导致 applyRows 永远
         // 收不到 tombstone，云端删除后本地对象就可能被下一次同步重新加入。
         out[r.key] = {
@@ -196,17 +185,10 @@
         }
       });
       // 本机刚拍还没推上去的照片也算「要保留」，不然会被误删
-      const localUnsynced = [];
       (window.PhotoStore && window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
-        if (!(m.photos || {})[id]) localUnsynced.push(id);
         if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
       });
-      activePhotos.forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
-      const blocked = new Set(deletedPhotos.concat(m.pendingPhotoDeletes || []));
-      const resolvedWanted = wanted.filter(id => !blocked.has(id));
-      // 用户在本机重新上传同一个格子时，这是比旧 tombstone 更新的操作。
-      localUnsynced.forEach(id => { if (resolvedWanted.indexOf(id) < 0) resolvedWanted.push(id); });
-      m.wanted = (sawManifest || sawPhotoState) ? resolvedWanted : null;
+      m.wanted = sawManifest ? wanted : null;
       m.pulledAt = Date.now();
       writeJSON(META_KEY, m);
       await this.pullPhotos();
@@ -231,8 +213,7 @@
         m.hashes[k] = h;
       });
       // 我自己删掉的行，云端标记删除
-      const gone = Object.keys(m.hashes).filter(k => k.indexOf('photo:') !== 0
-        && !rows[k] && m.hashes[k] !== '__deleted' && this.ownKey(k));
+      const gone = Object.keys(m.hashes).filter(k => !rows[k] && m.hashes[k] !== '__deleted' && this.ownKey(k));
       gone.forEach(k => {
         up.push({ key: k, kind: k.split(':')[0], who: this.who(), owner: me.id, payload: {}, deleted: true, updated_at: new Date().toISOString() });
         m.hashes[k] = '__deleted';
@@ -261,51 +242,14 @@
       const { error } = await sb.from(TABLE).upsert(up, { onConflict: 'key' });
       if (error) { emit(classify(error)); return false; }
       keys.forEach(k => { m.hashes[k] = '__deleted'; });
-      // 关联照片也写独立 tombstone，不能只删 Storage 对象。
+      // 顺手把照片从桶里删掉，别让对方再拉一遍
       if (photoIds && photoIds.length) {
-        await this.markPhotosDeleted(photoIds);
+        try { await sb.storage.from(BUCKET).remove(photoIds.map(id => id + '.webp')); } catch (e) {}
+        photoIds.forEach(id => { if (m.photos) delete m.photos[id]; });
       }
       writeJSON(META_KEY, m);
       emit({ status: 'online', message: '删除已同步', lastSync: Date.now() });
       return true;
-    },
-
-    // 照片删除队列先落本地，再写 entries tombstone。离线时队列保留，
-    // 下次同步会先补写删除，绝不会先把旧照片拉回来。
-    async markPhotosDeleted(photoIds) {
-      const ids = (photoIds || []).filter((id, i, a) => id && a.indexOf(id) === i);
-      if (!ids.length) return true;
-      let m = meta();
-      m.pendingPhotoDeletes = (m.pendingPhotoDeletes || []).concat(ids)
-        .filter((id, i, a) => a.indexOf(id) === i);
-      ids.forEach(id => { if (m.photos) delete m.photos[id]; });
-      writeJSON(META_KEY, m);
-
-      const sb = await getClient();
-      if (!sb || !me) return false;
-      const now = new Date().toISOString();
-      const rows = ids.map(id => ({
-        key: 'photo:' + id, kind: 'photo', who: this.who(), owner: me.id,
-        payload: { id: id }, deleted: true, updated_at: now
-      }));
-      const { error } = await sb.from(TABLE).upsert(rows, { onConflict: 'key' });
-      if (error) { emit(classify(error)); return false; }
-      try { await sb.storage.from(BUCKET).remove(ids.map(id => id + '.webp')); } catch (e) {}
-
-      m = meta();
-      m.pendingPhotoDeletes = (m.pendingPhotoDeletes || []).filter(id => ids.indexOf(id) < 0);
-      ids.forEach(id => {
-        m.hashes['photo:' + id] = '__deleted';
-        if (m.photos) delete m.photos[id];
-      });
-      writeJSON(META_KEY, m);
-      emit({ status: 'online', message: '照片删除已同步', lastSync: Date.now() });
-      return true;
-    },
-
-    async flushPhotoDeletes() {
-      const ids = meta().pendingPhotoDeletes || [];
-      return ids.length ? this.markPhotosDeleted(ids) : true;
     },
 
     // 我能删的行：菜谱 / 餐厅是两个人共用的，带对方名字的记录行不许我碰
@@ -367,7 +311,6 @@
       const m = meta();
       const local = window.PhotoStore.all();
       let n = 0;
-      const activeRows = [];
       for (const id of Object.keys(local)) {
         const stamp = local[id].length;
         if (m.photos[id] === stamp) continue;
@@ -376,16 +319,6 @@
         if (error) { state.photoErr = '传照片失败：' + error.message; throw error; }
         state.photoErr = '';
         m.photos[id] = stamp; n++;
-        const payload = { id: id };
-        activeRows.push({
-          key: 'photo:' + id, kind: 'photo', who: this.who(), owner: me.id,
-          payload: payload, deleted: false, updated_at: new Date().toISOString()
-        });
-        m.hashes['photo:' + id] = hash(JSON.stringify(payload));
-      }
-      if (activeRows.length) {
-        const { error } = await sb.from(TABLE).upsert(activeRows, { onConflict: 'key' });
-        if (error) throw error;
       }
       writeJSON(META_KEY, m);
       if (n) emit({ message: '又传了 ' + n + ' 张照片' });
@@ -417,13 +350,6 @@
           try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
         }
         if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
-        // 删除优先于 pull，避免旧照片清单把刚删的照片下载回来。
-        await this.flushPhotoDeletes();
-        // 只要这台设备完成过一次云端基线同步，就先推本机快照。
-        // 这样列表删项、清空数组、删除一次打卡等「payload 内部的删除」
-        // 不会在 pull-first 流程中先被旧云端快照覆盖。
-        const hadBaseline = !!meta().pulledAt;
-        if (hadBaseline) await this.pushRows(rows());
         const remote = await this.pullRows();
         if (remote && applyRemote) applyRemote(remote);
         await this.pushRows(rows());
