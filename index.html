@@ -1917,6 +1917,7 @@ class Component extends DCLogic {
       patch.wantGone = shared.wantGone;
     }
     if (Object.keys(patch).length) this.setState(patch);
+    this.scrubJunk();
     this.forceUpdate();
   }
 
@@ -2041,6 +2042,33 @@ class Component extends DCLogic {
   async doLogout() {
     await window.CloudSync.signOut();
     this.setState({ authUser: null, screen: 'home' });
+  }
+
+  // 早先的同步 bug 可能塞进来过空壳条目（名字显示成 undefined）：
+  // 本地清掉，并告诉云端删除，两台设备都不会再看到它
+  scrubJunk() {
+    const dead = [];
+    [['dish', DISHES], ['rest', RESTAURANTS]].forEach(pair => {
+      for (let i = pair[1].length - 1; i >= 0; i--) {
+        const x = pair[1][i];
+        if (!x || !x.id || !x.cn) {
+          if (x && x.id) dead.push(pair[0] + ':' + x.id);
+          pair[1].splice(i, 1);
+        }
+      }
+    });
+    const stale = (this.state.want || []).filter(id =>
+      !DISHES.some(d => d.id === id) && !RESTAURANTS.some(r => r.id === id));
+    if (!dead.length && !stale.length) return;
+    const wg = Object.assign({}, this.state.wantGone || {});
+    stale.forEach(id => { wg[id] = Date.now(); });
+    this.setState({
+      gone: (this.state.gone || []).concat(dead).filter((k, i, a) => a.indexOf(k) === i),
+      want: (this.state.want || []).filter(id => stale.indexOf(id) < 0),
+      wantGone: wg
+    });
+    if (dead.length && window.CloudSync && window.CloudSync.markDeleted) window.CloudSync.markDeleted(dead);
+    setTimeout(() => this.cloudSync(), 500);
   }
 
   go(screen, patch) {
@@ -2183,8 +2211,7 @@ class Component extends DCLogic {
   }
 
   hydrate(data) {
-    if (!data) return;
-    const swap = (arr, next) => { if (Array.isArray(next)) { arr.length = 0; next.forEach(x => arr.push(x)); } };
+    if (!data) return;    const swap = (arr, next) => { if (Array.isArray(next)) { arr.length = 0; next.forEach(x => arr.push(x)); } };
     const fill = (obj, next) => { if (next && typeof next === 'object') { Object.keys(obj).forEach(k => delete obj[k]); Object.assign(obj, next); } };
     swap(DISHES, data.dishes); swap(RESTAURANTS, data.restaurants);
     fill(RECORDS, data.records); fill(PLANS, data.plans);
@@ -2198,6 +2225,7 @@ class Component extends DCLogic {
       covers: data.covers || this.state.covers,
       gone: data.gone || this.state.gone
     });
+    this.scrubJunk();
   }
 
   persist() {
@@ -2276,6 +2304,8 @@ class Component extends DCLogic {
     };
     const day = (RECORDS[key] || []).filter(it => !(it.cn === r.cn && (it.by || 'cai') === by));
     RECORDS[key] = day.concat([item]);
+    // 这一天之前可能被删过，行还挂着删除标记；新记录要把标记销掉才推得上去
+    this.touchRecDay(false, key);
     this.setState({
       visits: Object.assign({}, this.state.visits, { [r.id]: list }),
       screen: 'restDetail', tabsOpen: false
@@ -2322,6 +2352,7 @@ class Component extends DCLogic {
     };
     const day = (RECORDS[key] || []).filter(it => !(it.cn === d.cn && (it.by || 'cai') === by));
     RECORDS[key] = day.concat([item]);
+    this.touchRecDay(false, key);
     // 吃过的时间 / 几天没吃都从真实日期算，不再是写死的数字
     const dish = DISHES.filter(x => x.id === d.id)[0];
     if (dish) {
