@@ -14,28 +14,59 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>
-// 键盘弹出时浏览器会把「可视视口」整体上推，文档层面滚不回来。
-// 这里直接把 app 钉在可视视口上：高度 = visualViewport.height，再把被推走的 offsetTop 补回来。
+// 把 app 钉在可视视口里：任何时候文档本身都不滚动，滚动全交给内层容器。
 (function () {
   var vv = window.visualViewport;
   var root = document.documentElement;
+  var marks = [];
+
   var apply = function () {
     var inner = window.innerHeight || 0;
     var h = vv ? vv.height : inner;
-    if (inner) h = Math.min(h, inner);          // 永不超过真实可见高度
-    // offsetTop 只在键盘确实撑起视口时才补偿，否则一律归零（否则会卡住不还原）
-    var kb = vv && inner && (inner - vv.height) > 80;
-    var off = kb ? Math.max(0, vv.offsetTop) : 0;
+    if (inner) h = Math.min(h, inner);
     root.style.setProperty('--cx-vh', h + 'px');
-    root.style.setProperty('--cx-vvtop', off + 'px');
     if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
     if (root.scrollTop) root.scrollTop = 0;
     if (document.body.scrollTop) document.body.scrollTop = 0;
   };
-  var later = function () { apply(); setTimeout(apply, 60); setTimeout(apply, 260); setTimeout(apply, 700); };
+
+  // 真正把界面顶上去的往往是内层滚动容器（浏览器为露出某个元素滑了它）
+  var topAll = function () {
+    var all = document.querySelectorAll('div,section,main,ul');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.scrollTop && el.scrollHeight > el.clientHeight + 1) el.scrollTop = 0;
+    }
+  };
+
+  var later = function () {
+    apply(); topAll();
+    setTimeout(function () { apply(); topAll(); }, 80);
+    setTimeout(function () { apply(); topAll(); }, 320);
+    setTimeout(function () { apply(); topAll(); }, 800);
+  };
+
+  var remember = function (el) {
+    marks = [];
+    for (var n = el; n && n !== document.body; n = n.parentElement) {
+      if (n.scrollHeight > n.clientHeight + 1) marks.push([n, n.scrollTop]);
+    }
+  };
+  var restore = function () {
+    marks.forEach(function (m) { if (m[0].isConnected) m[0].scrollTop = m[1]; });
+  };
+
   if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply); }
   window.addEventListener('resize', apply);
-  // 真正把界面「顶上去」的往往不是文档，而是输入框所在的那个 overflow:auto 容器：\n  // 浏览器为了露出焦点框把它滚了，键盘收起后没人滚回来。这里聚焦前记住位置，失焦后还原。\n  var marks = [];\n  var remember = function (el) {\n    marks = [];\n    for (var n = el; n && n !== document.body; n = n.parentElement) {\n      if (n.scrollHeight > n.clientHeight + 1) marks.push([n, n.scrollTop]);\n    }\n  };\n  var restore = function () {\n    marks.forEach(function (m) { if (m[0].isConnected) m[0].scrollTop = m[1]; });\n  };\n  window.addEventListener('focusin', function (e) {\n    var t = e.target;\n    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) remember(t);\n    later();\n  }, true);\n  window.addEventListener('focusout', function () {\n    later();\n    restore(); setTimeout(restore, 80); setTimeout(restore, 300); setTimeout(restore, 700);\n  }, true);
+  window.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) remember(t);
+    apply();
+  }, true);
+  window.addEventListener('focusout', function () {
+    apply();
+    restore(); setTimeout(restore, 100); setTimeout(restore, 350);
+  }, true);
   window.addEventListener('orientationchange', later);
   window.addEventListener('pageshow', later);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) later(); });
@@ -67,8 +98,7 @@ body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,san
   /* 整页钉死在视口上：文档层面没有可滚动的东西，键盘就顶不动它 */
   html{height:100vh;height:100svh;overflow:hidden;overscroll-behavior:none}
   /* top 用可视视口偏移补偿：键盘把视口推上去多少，body 就往下挪回来多少 */
-  body{position:fixed;top:var(--cx-vvtop,0px);left:0;right:0;bottom:auto;width:100%;
-       height:100vh;height:100svh;
+  body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:auto;
        overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
   body{background:#fdf8ee}
   .cx-shell{padding:0!important;gap:0!important;flex-wrap:nowrap!important}
@@ -1718,12 +1748,22 @@ class Component extends DCLogic {
     (st.gone || []).forEach(k => { delete out[k]; });
     // 照片清单：这台设备现在有哪些照片。清单里没有的就是被删了，删除靠它同步
     if (window.PhotoStore && window.PhotoStore.ids) {
-      out['photos:' + who] = { kind: 'photos', who: who, payload: { ids: window.PhotoStore.ids().sort() } };
+      out['photos:' + who] = {
+        kind: 'photos', who: who,
+        payload: {
+          ids: window.PhotoStore.ids().sort(),
+          stamps: window.PhotoStore.ids().reduce((o, id) => {
+            const t = window.PhotoStore.stampOf ? window.PhotoStore.stampOf(id) : 0;
+            if (t) o[id] = t;
+            return o;
+          }, {})
+        }
+      };
     }
-    // 照片删除名单也走正规行同步，别只靠单独那次云端写入
+    // 照片删除名单也走正规行同步
     if (window.CloudSync && window.CloudSync.photoTombstones) {
       const dead = window.CloudSync.photoTombstones();
-      if (dead.length) out['photodel:' + who] = { kind: 'photodel', who: who, payload: { ids: dead.sort() } };
+      if (Object.keys(dead).length) out['photodel:' + who] = { kind: 'photodel', who: who, payload: { del: dead } };
     }
     out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;

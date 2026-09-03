@@ -188,8 +188,11 @@
       const out = {};
       const wanted = [];
       const gone = goneOf(m);
-      const pdead = {};
-      (m.pdel || []).forEach(id => { pdead[id] = 1; });
+      const pdead = {};   // id -> 删除时间
+      const pstamp = {};  // id -> 照片本身的时间
+      const pd0 = m.pdel || {};
+      if (Array.isArray(pd0)) pd0.forEach(id => { pdead[id] = 1; });
+      else Object.keys(pd0).forEach(id => { pdead[id] = pd0[id]; });
       let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
@@ -204,22 +207,34 @@
         if (gone[r.key]) return;
         // 全局照片删除名单：不交给 app，只用来从清单里减掉
         if (r.kind === 'photodel') {
-          (r.payload.ids || []).forEach(id => { pdead[id] = 1; });
+          const d = r.payload.del || {};
+          Object.keys(d).forEach(id => { pdead[id] = Math.max(pdead[id] || 0, d[id] || 1); });
+          (r.payload.ids || []).forEach(id => { pdead[id] = Math.max(pdead[id] || 0, 1); });
           return;
         }
         out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
         if (r.kind === 'photos') {
           sawManifest = true;
-          (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
+          const sp = r.payload.stamps || {};
+          (r.payload.ids || []).forEach(id => {
+            if (wanted.indexOf(id) < 0) wanted.push(id);
+            pstamp[id] = Math.max(pstamp[id] || 0, sp[id] || 0);
+          });
         }
       });
       // 本机刚拍还没推上去的照片也算「要保留」，不然会被误删
       (window.PhotoStore && window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
         if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
       });
+      // 照片比删除记录新 → 是同一个位置重新加的，放行，并销毁删除记录
+      Object.keys(pdead).forEach(id => {
+        const mine = window.PhotoStore && window.PhotoStore.stampOf ? (window.PhotoStore.stampOf(id) || 0) : 0;
+        const newest = Math.max(pstamp[id] || 0, mine);
+        if (newest && newest > (pdead[id] || 0)) delete pdead[id];
+      });
       m.wanted = sawManifest ? wanted.filter(id => !pdead[id]) : null;
-      m.pdel = Object.keys(pdead);
-      m.pdead = m.pdel;
+      m.pdel = pdead;
+      m.pdead = Object.keys(pdead);
       m.pulledAt = Date.now();
       writeJSON(META_KEY, m);
       await this.pullPhotos();
@@ -275,7 +290,11 @@
       writeJSON(META_KEY, m);
     },
 
-    photoTombstones() { return (meta().pdel || []).slice(); },
+    photoTombstones() {
+      const p = meta().pdel || {};
+      if (Array.isArray(p)) { const o = {}; p.forEach(id => { o[id] = 1; }); return o; }
+      return Object.assign({}, p);
+    },
 
     // 照片删除名单：清单是每台设备各存一份、取并集，
     // 所以光从自己清单里拿掉没用，必预一份全局名单才能真删掉。
@@ -283,8 +302,11 @@
       const list = (ids || []).filter(Boolean);
       if (!list.length) return;
       const m = meta();
-      if (!m.pdel) m.pdel = [];
-      list.forEach(id => { if (m.pdel.indexOf(id) < 0) m.pdel.push(id); });
+      if (!m.pdel || Array.isArray(m.pdel)) {
+        const o = {}; (m.pdel || []).forEach(id => { o[id] = 1; }); m.pdel = o;
+      }
+      const now = Date.now();
+      list.forEach(id => { m.pdel[id] = now; });
       list.forEach(id => { if (m.photos) delete m.photos[id]; if (m.pfiles) delete m.pfiles[id]; });
       writeJSON(META_KEY, m);
       const sb = await getClient();
@@ -293,10 +315,19 @@
       try {
         await sb.from(TABLE).upsert({
           key: 'photodel:' + w, kind: 'photodel', who: w, owner: me.id,
-          payload: { ids: m.pdel }, deleted: false, updated_at: new Date().toISOString()
+          payload: { del: m.pdel }, deleted: false, updated_at: new Date().toISOString()
         }, { onConflict: 'key' });
         await sb.storage.from(BUCKET).remove(list.map(id => id + '.webp'));
       } catch (e) {}
+    },
+
+    // 同一个位置重新加照片 → 把它从删除名单里拿掉，否则永远传不上去
+    unmarkPhoto(id) {
+      const m = meta();
+      if (!m.pdel || Array.isArray(m.pdel)) return;
+      if (m.pdel[id] == null) return;
+      delete m.pdel[id];
+      writeJSON(META_KEY, m);
     },
 
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
@@ -341,9 +372,16 @@
       window.CloudSync.__quiet = true;
       const wanted = m0.wanted || null;
       const pdead = {};
-      (m0.pdel || []).forEach(id => { pdead[id] = 1; });
-      // 全局名单里已删的，本机一律清掉（不管是否同步过）
-      Object.keys(local).forEach(id => { if (pdead[id]) window.PhotoStore.set(id, null); });
+      const pd = m0.pdel || {};
+      if (Array.isArray(pd)) pd.forEach(id => { pdead[id] = 1; });
+      else Object.keys(pd).forEach(id => { pdead[id] = pd[id]; });
+      // 全局名单里已删且本机照片不比它新的 → 清掉
+      Object.keys(local).forEach(id => {
+        if (!pdead[id]) return;
+        const st = window.PhotoStore.stampOf ? (window.PhotoStore.stampOf(id) || 0) : 0;
+        if (st > (pdead[id] || 0)) return;
+        window.PhotoStore.set(id, null);
+      });
       if (wanted) {
         const keep = {};
         wanted.forEach(id => { keep[id] = 1; });
@@ -397,7 +435,11 @@
       const local = window.PhotoStore.all();
       let n = 0;
       for (const id of Object.keys(local)) {
-        if ((m.pdel || []).indexOf(id) > -1) continue;   // 已删的别再传回去
+        const dead = (m.pdel && !Array.isArray(m.pdel)) ? m.pdel[id] : null;
+        if (dead) {
+          const st = window.PhotoStore.stampOf ? (window.PhotoStore.stampOf(id) || 0) : 0;
+          if (st <= dead) continue;   // 确实是被删的，不传
+        }
         const stamp = local[id].length;
         if (m.photos[id] === stamp) continue;
         const blob = await dataUrlToBlob(local[id]);
@@ -419,20 +461,37 @@
       if (error) return;
       const m = meta();
       const pdead = {};
-      (m.pdel || []).forEach(id => { pdead[id] = 1; });
+      const pdx = m.pdel || {};
+      if (Array.isArray(pdx)) pdx.forEach(id => { pdead[id] = 1; });
+      else Object.keys(pdx).forEach(id => { pdead[id] = pdx[id]; });
+      const pstamp = {};
       const wanted = [];
       let saw = false;
       (data || []).forEach(r => {
         if (r.deleted) return;
-        if (r.kind === 'photodel') { (r.payload.ids || []).forEach(id => { pdead[id] = 1; }); return; }
+        if (r.kind === 'photodel') {
+          const d = r.payload.del || {};
+          Object.keys(d).forEach(id => { pdead[id] = Math.max(pdead[id] || 0, d[id] || 1); });
+          (r.payload.ids || []).forEach(id => { pdead[id] = Math.max(pdead[id] || 0, 1); });
+          return;
+        }
         saw = true;
-        (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
+        const sp = r.payload.stamps || {};
+        (r.payload.ids || []).forEach(id => {
+          if (wanted.indexOf(id) < 0) wanted.push(id);
+          pstamp[id] = Math.max(pstamp[id] || 0, sp[id] || 0);
+        });
+      });
+      Object.keys(pdead).forEach(id => {
+        const mine = window.PhotoStore.stampOf ? (window.PhotoStore.stampOf(id) || 0) : 0;
+        const newest = Math.max(pstamp[id] || 0, mine);
+        if (newest && newest > (pdead[id] || 0)) delete pdead[id];
       });
       (window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
         if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
       });
       m.wanted = saw ? wanted.filter(id => !pdead[id]) : null;
-      m.pdel = Object.keys(pdead);
+      m.pdel = pdead;
       writeJSON(META_KEY, m);
       try { await this.pullPhotos(); } catch (e) {}
       emit({ message: '照片已更新', lastSync: Date.now() });
@@ -632,6 +691,8 @@
     ps.set = function (id, val) {
       if (val == null && !window.CloudSync.__quiet && window.CloudSync.markPhotosDeleted) {
         window.CloudSync.markPhotosDeleted([id]);
+      } else if (val && window.CloudSync.unmarkPhoto) {
+        window.CloudSync.unmarkPhoto(id);   // 重新加上的照片要销掉删除记录
       }
       return orig(id, val);
     };
