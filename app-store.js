@@ -5,30 +5,57 @@
   const RING = 'chouxiang-rollback-v1';   // 本机自动回滚点（只存数据，照片在 IndexedDB 里不动）
   const RING_KEEP = 4;
   const RING_GAP = 20 * 60 * 1000;        // 两个回滚点至少隔 20 分钟
+  const RING_MAX = 1200000;               // 数据大到这个程度就不再留回滚点
 
-  // 每次覆盖存档前，把「覆盖之前那一份」留成回滚点。
-  // 万一同步或改动把东西弄没了，可以直接退回几十分钟前的状态。
+  function ringRead() {
+    try { return JSON.parse(localStorage.getItem(RING) || '[]') || []; } catch (e) { return []; }
+  }
+
+  function ringWrite(ring) {
+    try {
+      if (!ring.length) { localStorage.removeItem(RING); return true; }
+      localStorage.setItem(RING, JSON.stringify(ring));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // 腾地方：丢掉最老的一个回滚点。还能丢就返回 true
+  function shrinkRing() {
+    const ring = ringRead();
+    if (!ring.length) return false;
+    ring.pop();
+    if (!ringWrite(ring)) { try { localStorage.removeItem(RING); } catch (e) {} }
+    return true;
+  }
+
+  // 把「覆盖之前那一份」留成回滚点。万一同步或改动把东西弄没了，
+  // 可以直接退回几十分钟前的状态。但回滚点永远让位于主存档：
+  // 数据大就少留几份，写不下就不留，绝不能把主存档的配额吃掉。
   function keepRollback(prevRaw) {
-    if (!prevRaw) return;
-    let ring = [];
-    try { ring = JSON.parse(localStorage.getItem(RING) || '[]') || []; } catch (e) { ring = []; }
-    const now = Date.now();
-    if (ring.length && now - (ring[0].at || 0) < RING_GAP) return;
-    let d = null;
-    try { d = JSON.parse(prevRaw); } catch (e) { return; }
-    if (!d) return;
-    ring.unshift({
-      at: now, raw: prevRaw,
-      dishes: (d.dishes || []).length,
-      rests: (d.restaurants || []).length,
-      days: Object.keys(d.records || {}).length
-    });
-    while (ring.length > RING_KEEP) ring.pop();
-    // 配额吃紧就先丢最老的，丢到能写下为止
-    while (ring.length) {
-      try { localStorage.setItem(RING, JSON.stringify(ring)); return; }
-      catch (e) { ring.pop(); }
-    }
+    try {
+      if (!prevRaw || prevRaw.length > RING_MAX) return;
+      const ring = ringRead();
+      const now = Date.now();
+      if (ring.length && now - (ring[0].at || 0) < RING_GAP) return;
+      let d = null;
+      try { d = JSON.parse(prevRaw); } catch (e) { return; }
+      if (!d) return;
+      // 数据越大越少留：一共大约不超过主存档的两倍
+      const keep = prevRaw.length > 400000 ? 1 : prevRaw.length > 120000 ? 2 : RING_KEEP;
+      ring.unshift({
+        at: now, raw: prevRaw,
+        dishes: (d.dishes || []).length,
+        rests: (d.restaurants || []).length,
+        days: Object.keys(d.records || {}).length
+      });
+      while (ring.length > keep) ring.pop();
+      // 配额吃紧就先丢最老的，丢到能写下为止；一份也写不下就干脆不留
+      while (ring.length) {
+        if (ringWrite(ring)) return;
+        ring.pop();
+      }
+      try { localStorage.removeItem(RING); } catch (e) {}
+    } catch (e) {}
   }
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
@@ -41,35 +68,44 @@
       } catch (e) { return null; }
     },
 
+    // 主存档优先：先把它写进去，配额不够就一层层丢回滚点腾地方；
+    // 回滚点是为了防丢数据，绝不能反过来把新存的东西挤没。
     save(snapshot) {
-      try {
-        keepRollback(localStorage.getItem(KEY));
-        localStorage.setItem(KEY, JSON.stringify(snapshot));
-        return true;
-      } catch (e) {
-        // 配额满了通常是历史照片太多——照片其实在 IndexedDB，这里只可能是数据本身过大
-        console.warn('存档写入失败', e);
-        return false;
+      let prev = null;
+      try { prev = localStorage.getItem(KEY); } catch (e) {}
+      let body;
+      try { body = JSON.stringify(snapshot); } catch (e) { console.warn('存档序列化失败', e); return false; }
+      for (;;) {
+        try {
+          localStorage.setItem(KEY, body);
+          keepRollback(prev);
+          return true;
+        } catch (e) {
+          // 先拿回滚点的空间重试；丢完也还写不下，才真的是数据本身超额
+          if (!shrinkRing()) { console.warn('存档写入失败', e); return false; }
+        }
       }
     },
 
     // 本机回滚点清单（新的在前）
     rollbacks() {
-      try {
-        return (JSON.parse(localStorage.getItem(RING) || '[]') || [])
-          .map((r, i) => ({ i: i, at: r.at, dishes: r.dishes, rests: r.rests, days: r.days }));
-      } catch (e) { return []; }
+      return ringRead()
+        .map((r, i) => ({ i: i, at: r.at, dishes: r.dishes, rests: r.rests, days: r.days }));
     },
 
     // 退回某个回滚点：返回那一份数据交给 App 套用（照片不动）
     rollbackTo(i) {
-      let ring = [];
-      try { ring = JSON.parse(localStorage.getItem(RING) || '[]') || []; } catch (e) { ring = []; }
+      const ring = ringRead();
       const r = ring[i];
       if (!r || !r.raw) throw new Error('这个回滚点已经不在了');
       const data = JSON.parse(r.raw);
-      keepRollback(localStorage.getItem(KEY));
-      localStorage.setItem(KEY, r.raw);
+      let prev = null;
+      try { prev = localStorage.getItem(KEY); } catch (e) {}
+      for (;;) {
+        try { localStorage.setItem(KEY, r.raw); break; }
+        catch (e) { if (!shrinkRing()) throw new Error('本机存不下了，先清几张照片再试'); }
+      }
+      keepRollback(prev);
       return { at: r.at, data: data };
     },
 

@@ -844,6 +844,12 @@ a{color:#8c491a}a:hover{color:#b2622d}
       <span style="padding:7px 13px;border-radius:999px;background:#f6ecd8;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">照片 {{ usePhotos }}</span>
       <span style="padding:7px 13px;border-radius:999px;background:#eff3e4;font:700 11px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">{{ savedLabel }}</span>
     </div>
+    <sc-if value="{{ saveFail }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:9px;align-items:center;padding:13px 15px;border-radius:22px;background:#f9e2d4">
+        <span style="width:40px;height:40px;flex:none"><dc-import name="Chouxiang" state="cry" hint-size="40px,40px"></dc-import></span>
+        <span style="flex:1;font:800 12px/1.45 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">本机存不下了 —— 新加的东西没能存进来。先下载备份，再清掉一些照片。</span>
+      </div>
+    </sc-if>
     <sc-if value="{{ backupMsg }}" hint-placeholder-val="{{ false }}">
       <span style="font:700 11.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">{{ backupMsg }}</span>
     </sc-if>
@@ -1944,6 +1950,17 @@ class Component extends DCLogic {
     return out;
   }
 
+  // 这台设备装上「记录墓碑修复版」的时间。早于它的记录墓碑一概不信。
+  recFixAt() {
+    if (this.__fixAt) return this.__fixAt;
+    const K = 'chouxiang-recfix-at';
+    let v = 0;
+    try { v = parseInt(localStorage.getItem(K) || '0', 10) || 0; } catch (e) {}
+    if (!v) { v = Date.now(); try { localStorage.setItem(K, String(v)); } catch (e) {} }
+    this.__fixAt = v;
+    return v;
+  }
+
   // 删除墓碑：{ key: 删除时间 }。两人各存一份，同步时取并集 ——
   // 只靠云端行上的 deleted 标记不够：对方一推旧副本就把标记盖没了。
   bury(inc, rv0) {
@@ -1953,6 +1970,20 @@ class Component extends DCLogic {
     // 复活比删除新 → 墓碑作废（同一天删完又记了新的，就是这种）
     const rv = rv0 || this.state.reviveAt || {};
     Object.keys(at).forEach(k => { if ((rv[k] || 0) >= at[k]) delete at[k]; });
+    // 修好之前造出来的记录墓碑一律不算数：那时候每打一次卡都会替对方发一条
+    // 「删掉他这一天」，时间戳还很新，光靠时间戳永远顶不开。规则收在时间线以内：
+    // 早于修复时间的墓碑，只要这一天这个人现在确实有记录，就作废；
+    // 修复之后产生的墓碑照旧按时间戳算，跨设备删记录仍然有效。
+    const fixAt = this.recFixAt();
+    Object.keys(at).forEach(k => {
+      const isRec = k.indexOf('record:') === 0, isPlan = k.indexOf('plan:') === 0;
+      if (!isRec && !isPlan) return;
+      if ((at[k] || 0) >= fixAt) return;
+      const parts = k.slice(k.indexOf(':') + 1).split(':');
+      const day = parts[0], w = parts[1] || 'cai';
+      const box = isRec ? RECORDS : PLANS;
+      if ((box[day] || []).some(it => (it.by || 'cai') === w)) delete at[k];
+    });
     const out = {};
     Object.keys(at).sort((a, b) => (at[b] || 0) - (at[a] || 0)).slice(0, 800)
       .forEach(k => { out[k] = at[k]; });
@@ -1968,6 +1999,44 @@ class Component extends DCLogic {
     Object.keys(rv).sort((a, b) => (rv[b] || 0) - (rv[a] || 0)).slice(0, 800)
       .forEach(k => { out[k] = rv[k]; });
     return out;
+  }
+
+  // 一次性自愈：旧版每次打卡都会替对方发一条「删掉他这一天的记录」的墓碑，
+  // 这些墓碑存在两个人的删除名单里，会一直把记录抹掉 —— 包括自己的
+  // （对方旧版发出来的就是冲着我的行来的）。所以：清掉本地误发的，
+  // 并给本地真实有内容的每一行都记一条复活时间，压不住了。只跑一次。
+  purgeCrossTombs() {
+    try {
+      const FLAG = 'chouxiang-crosstomb-fix-v2';
+      if (localStorage.getItem(FLAG)) return;
+      // 存档还没套进 state 就先别记「已清理」，否则这次清理白跑
+      const g = this.state.goneAt;
+      if (!g) return;
+      localStorage.setItem(FLAG, '1');
+      // ① 对方那边被误发的墓碑：本地直接清掉
+      const other = this.otherWho();
+      const tail = ':' + other;
+      const bad = Object.keys(g).filter(k =>
+        (k.indexOf('record:') === 0 || k.indexOf('plan:') === 0) && k.slice(-tail.length) === tail);
+      // ② 本地实际有内容的每一行（含自己的）都记一条复活时间 ——
+      //    对方设备用旧版发出来的墓碑可能压着我自己的行，这是唯一能自己站起来的办法
+      const alive = [];
+      [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
+        Object.keys(pair[1]).forEach(day => {
+          ['cai', 'guo'].forEach(w => {
+            if ((pair[1][day] || []).some(it => (it.by || 'cai') === w)) alive.push(pair[0] + ':' + day + ':' + w);
+          });
+        });
+      });
+      if (!bad.length && !alive.length) return;
+      const rv = this.reviveKeys(bad.concat(alive));
+      const at = Object.assign({}, g);
+      bad.concat(alive).forEach(k => { delete at[k]; });
+      this.setState({ goneAt: at, gone: Object.keys(at), reviveAt: rv });
+      if (window.CloudSync && window.CloudSync.unmarkDeleted) {
+        window.CloudSync.unmarkDeleted(bad.concat(alive));
+      }
+    } catch (e) {}
   }
 
   // 把墓碑名单落到本地：名单里的菜 / 店 / 记录一律删掉，照片也清掉
@@ -2406,6 +2475,10 @@ class Component extends DCLogic {
     this.saveTimer = setTimeout(() => {
       if (window.AppStore && window.AppStore.save(this.snapshot())) {
         if (!this.state.savedAt || Date.now() - this.state.savedAt > 20000) this.setState({ savedAt: Date.now() });
+        if (this.state.saveFail) this.setState({ saveFail: false });
+      } else if (window.AppStore && !this.state.saveFail) {
+        // 存不下去必须让人看见，不能只在控制台里 warn 一句
+        this.setState({ saveFail: true, backupMsg: '本机存不下了：新加的东西没能存进来。先下载一份备份，再清掉一些照片。' });
       }
       this.cloudPushSoon();
     }, 600);
@@ -2507,7 +2580,7 @@ class Component extends DCLogic {
     RECORDS[key] = day.concat([item]);
     this.markDirty(['visit:' + this.meWho(), 'record:' + key + ':' + by]);
     // 这一天之前可能被删过，行还挂着删除标记；新记录要把标记销掉才推得上去
-    this.touchRecDay(false, key);
+    this.touchRecDay(false, key, [by]);
     this.setState({
       visits: Object.assign({}, this.state.visits, { [r.id]: list }),
       screen: 'restDetail', tabsOpen: false
@@ -2555,7 +2628,7 @@ class Component extends DCLogic {
     const day = (RECORDS[key] || []).filter(it => !(it.cn === d.cn && (it.by || 'cai') === by));
     RECORDS[key] = day.concat([item]);
     this.markDirty(['record:' + key + ':' + by, 'dish:' + d.id]);
-    this.touchRecDay(false, key);
+    this.touchRecDay(false, key, [by]);
     // 吃过的时间 / 几天没吃都从真实日期算，不再是写死的数字
     const dish = DISHES.filter(x => x.id === d.id)[0];
     if (dish) {
@@ -2606,6 +2679,8 @@ class Component extends DCLogic {
     DISHES.forEach(d => { d.band = bandOfKcal(d.kcal, d.minutes || d.eta || d.travel); });
     DISHES.forEach(fixAte);
     if (window.AppStore) this.hydrate(window.AppStore.load());
+    // hydrate 的 setState 还没落地，等这一拍过去再清理（云端同步是网络请求，一定更晚）
+    setTimeout(() => this.purgeCrossTombs(), 0);
     // photo-slot.js 是 helmet 里异步加载的，挂载时可能还没到，所以要等它出现再订阅
     this.hookPhotos();
     this.hookCloud();
@@ -3023,11 +3098,21 @@ class Component extends DCLogic {
   // ── 饮食记录：改一笔 / 删一笔 ────────────────────
   recKey(it) { return (it.slot || '') + '|' + (it.cn || ''); }
 
+  // 这条记录到底属于谁：合并显示的一条可能是两个人的。
+  // 拿不到就只算自己 —— 绝不默认成 'cai'，那会让果果删一条就误删菜菜整天的记录。
+  recOwners(e) {
+    if (e && e.whos && e.whos.length) return e.whos.slice();
+    return [(e && e.by) || this.meWho()];
+  }
+
   openRecEdit(it) {
     this.go('recEdit', {
       recDelArm: false,
+      // whos 要一路带着：这一条可能同时属于两个人（合并显示），
+      // 改 / 删的时候只准动它真正属于的那些人的行
       recEdit: { day: it.day, k: this.recKey(it), isPlan: !!it.isPlan, cn: it.cn,
-                 slot: it.slot || '晓', note: it.note || '', together: !!it.together }
+                 slot: it.slot || '晓', note: it.note || '', together: !!it.together,
+                 whos: (it.whos && it.whos.length ? it.whos.slice() : [it.by || this.meWho()]) }
     });
   }
 
@@ -3042,7 +3127,7 @@ class Component extends DCLogic {
     box[e.day] = (box[e.day] || []).map(it => this.recKey(it) === e.k
       ? Object.assign({}, it, { slot: e.slot, note: e.note, together: !!e.together })
       : it);
-    this.touchRecDay(e.isPlan, e.day);
+    this.touchRecDay(e.isPlan, e.day, this.recOwners(e));
     this.go('diary', { recEdit: null, recDelArm: false });
   }
 
@@ -3052,17 +3137,21 @@ class Component extends DCLogic {
     const box = e.isPlan ? PLANS : RECORDS;
     const kept = (box[e.day] || []).filter(it => this.recKey(it) !== e.k);
     if (kept.length) box[e.day] = kept; else delete box[e.day];
-    this.touchRecDay(e.isPlan, e.day);
+    // 删的是谁那条就只动谁的行；合并显示的一条可能同时属于两个人
+    this.touchRecDay(e.isPlan, e.day, this.recOwners(e));
     this.go('diary', { recEdit: null, recDelArm: false });
   }
 
-  // 改完一天的记录后：空了的行告诉云端删除，又有内容的行把删除标记销掉
-  touchRecDay(isPlan, day) {
+  // 改完一天的记录后：空了的行告诉云端删除，又有内容的行把删除标记销掉。
+  // whos 必须写明这次动的是谁的记录 —— 不许替另一个人做判断：
+  // 本机手里没有对方今天的记录，不等于对方没记；那样一打卡就等于替对方发一条
+  // 「删掉他今天的记录」，对方刚打的卡会被这条墓碑抹掉。
+  touchRecDay(isPlan, day, whos) {
     const kind = isPlan ? 'plan' : 'record';
     const items = (isPlan ? PLANS : RECORDS)[day] || [];
     const dead = [], alive = [];
-    ['cai', 'guo'].forEach(w => {
-      const key = kind + ':' + day + ':' + w;
+    (whos && whos.length ? whos : [this.meWho()]).forEach(w => {
+      const key = kind + ':' + day + ':' + (w || 'cai');
       (items.some(it => (it.by || 'cai') === w) ? alive : dead).push(key);
     });
     const rv = this.reviveKeys(alive);
@@ -3787,6 +3876,7 @@ class Component extends DCLogic {
       restoreRef: el => { this.restoreEl = el; },
       onRestoreFile: e => { const f = e.target.files[0]; e.target.value = ''; this.restoreFrom(f); },
       backupMsg: st.backupMsg,
+      saveFail: !!st.saveFail,
       rollbackList: rollbacks.map(r => ({
         when: new Date(r.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
         counts: r.dishes + ' 道菜 · ' + r.rests + ' 家店 · ' + r.days + ' 天记录',
