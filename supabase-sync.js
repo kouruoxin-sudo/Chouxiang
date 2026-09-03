@@ -200,7 +200,11 @@
         // 并且要把「已删除」这个事实带回去，否则对方删的东西在这台永远不消失
         if (r.deleted) {
           delete gone[r.key];
-          out[r.key] = { kind: r.kind, who: r.who, payload: {}, deleted: true };
+          // at 必须带上这一行「真正被删的时间」：app 那边靠它判断
+          // 删除和内容谁更新。以前不带，app 只能用当下时间，
+          // 于是每拉一次就等于重新删一次，删除永远压着新内容。
+          out[r.key] = { kind: r.kind, who: r.who, payload: {}, deleted: true,
+                         at: r.updated_at ? Date.parse(r.updated_at) || 1 : 1 };
           return;
         }
         // 本地删过但云端还没落地 → 这轮绝不往回装，等 push 去补删
@@ -526,7 +530,8 @@
           const m = meta();
           m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
           writeJSON(META_KEY, m);
-          rowSubs.forEach(fn => fn({ key: r.key, kind: r.kind, who: r.who, payload: r.payload, deleted: !!r.deleted }));
+          rowSubs.forEach(fn => fn({ key: r.key, kind: r.kind, who: r.who, payload: r.payload,
+            deleted: !!r.deleted, at: r.updated_at ? Date.parse(r.updated_at) || 1 : Date.now() }));
         })
         .subscribe(s => emit({ live: s === 'SUBSCRIBED' }));
     },
