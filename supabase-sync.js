@@ -86,8 +86,18 @@
     config: cfg,
     configured() { const c = cfg(); return !!(c.url && c.key); },
     user: () => me,
-    who: () => localStorage.getItem(WHO_KEY) || '',
-    setWho(w) { try { localStorage.setItem(WHO_KEY, w || ''); } catch (e) {} },
+    // who 跟着账号走，不跟着这台电脑走——否则换台机器登同一个号会认错人
+    who() {
+      const map = readJSON('chouxiang-who-map', {});
+      if (me && map[me.id]) return map[me.id];
+      return localStorage.getItem(WHO_KEY) || '';
+    },
+    setWho(w) {
+      try {
+        localStorage.setItem(WHO_KEY, w || '');
+        if (me) { const map = readJSON('chouxiang-who-map', {}); map[me.id] = w || ''; writeJSON('chouxiang-who-map', map); }
+      } catch (e) {}
+    },
 
     setConfig(url, key) {
       writeJSON(CFG_KEY, { url: (url || '').trim(), key: (key || '').trim() });
@@ -204,7 +214,9 @@
       const up = [];
       Object.keys(rows).forEach(k => {
         const h = hash(JSON.stringify(rows[k].payload));
-        if (m.hashes[k] === h) return;
+        // 云端被标成删除、但本机还留着且没主动删过它 → 抢救回来（自动修复误删）
+        if (m.hashes[k] === '__deleted' && !goneOf(m)[k]) { /* 继续往下推，deleted:false */ }
+        else if (m.hashes[k] === h) return;
         up.push({
           key: k, kind: rows[k].kind, who: rows[k].who || this.who(),
           owner: me.id, payload: rows[k].payload, deleted: false,
@@ -212,11 +224,9 @@
         });
         m.hashes[k] = h;
       });
-      // 本地已经没有的行 → 云端标记删除。合并「本次发现的」和「历史欠账的」
+      // ⚠ 只推「明确删除」（markDeleted 记下的），绝不靠「本机没有」来推断删除
+      // —— m.hashes 记着历史上见过的所有 key，推断会把还活着的数据一起抹掉。
       const goneMap = goneOf(m);
-      Object.keys(m.hashes).forEach(k => {
-        if (!rows[k] && m.hashes[k] !== '__deleted') goneMap[k] = goneMap[k] || Date.now();
-      });
       const gone = Object.keys(goneMap).filter(k => !rows[k]);
       gone.forEach(k => {
         up.push({ key: k, kind: k.split(':')[0], who: this.who(), owner: me.id, payload: {}, deleted: true, updated_at: new Date().toISOString() });
@@ -232,6 +242,15 @@
       writeJSON(META_KEY, m);
       await this.pushPhotos();
       emit({ status: 'online', message: up.length ? '已同步 ' + up.length + ' 条改动' : '云端已是最新', lastSync: Date.now(), pending: 0 });
+    },
+
+    // 把本地序列化后的哈希登记成「已同步」，但不推云端。
+    // 用来终结乒乓：远端来的行落到本地后，本地重新序列化的结果往往和云端字节不同，
+    // 不登记的话下一轮 push 会把它原样推回去，对方又收到、又推回来。
+    acceptLocal(rows) {
+      const m = meta();
+      Object.keys(rows || {}).forEach(k => { m.hashes[k] = hash(JSON.stringify(rows[k].payload)); });
+      writeJSON(META_KEY, m);
     },
 
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去

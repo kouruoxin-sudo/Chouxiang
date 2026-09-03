@@ -78,7 +78,8 @@ body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,san
     --cx-top:calc(env(safe-area-inset-top,0px) + 18px);
     --cx-top-lg:calc(env(safe-area-inset-top,0px) + 26px);
     --cx-top-md:calc(env(safe-area-inset-top,0px) + 20px);
-    --cx-toast:calc(env(safe-area-inset-top,0px) + 10px);
+    /* 提示条落到返回按钮那一行下面，别压住它 */
+    --cx-toast:calc(env(safe-area-inset-top,0px) + 62px);
     --cx-bot:calc(env(safe-area-inset-bottom,0px) + 100px);
     --cx-navpad:calc(env(safe-area-inset-bottom,0px) + 14px);
     --cx-greet:calc(env(safe-area-inset-top,0px) + 14px);
@@ -1885,13 +1886,23 @@ class Component extends DCLogic {
 
   // ── 提示条 ───────────────────────────────────────────
   toast(text, mood) {
-    const id = 't' + Date.now() + Math.random().toString(36).slice(2, 5);
+    // 同一句话 20 秒内不重复弹
+    const now = Date.now();
+    this.toastSeen = this.toastSeen || {};
+    if (this.toastSeen[text] && now - this.toastSeen[text] < 20000) return;
+    this.toastSeen[text] = now;
+    const id = 't' + now + Math.random().toString(36).slice(2, 5);
     this.setState({ toasts: this.state.toasts.concat([{ id: id, text: text, mood: mood || 'excited' }]) });
     setTimeout(() => this.setState({ toasts: this.state.toasts.filter(t => t.id !== id) }), 5200);
   }
 
   remoteRow(row) {
     this.applyRows({ [row.key]: { kind: row.kind, who: row.who, payload: row.payload, deleted: !!row.deleted } }, false);
+    // 远端来的行就到此为止，不要再推回云端（否则两边互推，提示条会一直弹）
+    if (window.CloudSync && window.CloudSync.acceptLocal) {
+      clearTimeout(this.cloudTimer);
+      setTimeout(() => window.CloudSync.acceptLocal(this.rows()), 700);
+    }
     if (row.deleted) return;
     const name = this.nameOf(row.who || this.otherWho());
     const p = row.payload || {};
