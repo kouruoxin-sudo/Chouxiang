@@ -160,6 +160,7 @@
   :host([data-over]){outline:3px dashed #c67139;outline-offset:-6px}
   .acts{position:absolute;top:8px;right:8px;display:none;gap:6px;z-index:2}
   :host([data-filled]) .acts{display:flex}
+  :host([acts="off"]) .acts{display:none!important}
   .acts button{border:none;border-radius:999px;background:rgba(253,248,238,.94);color:#8c491a;
      font:800 11px/1 Nunito,"Noto Sans SC",sans-serif;cursor:pointer;min-height:26px;padding:0 9px}
   .acts .x{width:26px;height:26px;padding:0;font-size:12px}
@@ -217,7 +218,7 @@
       this._paint();
     }
     disconnectedCallback() { this._unsub && this._unsub(); }
-    static get observedAttributes() { return ['id', 'placeholder', 'prefix']; }
+    static get observedAttributes() { return ['id', 'placeholder', 'prefix', 'acts']; }
     attributeChangedCallback(n) {
       if (!this._built) return;
       if (n === 'placeholder') this._cap.textContent = this.getAttribute('placeholder') || '拖张照片进来';

@@ -183,7 +183,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 <sc-if value="{{ atResult }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
   <div style="position:relative;height:296px;background:#e9dcc2;border-radius:0 0 52px 52px;flex:none;overflow:hidden">
-    <photo-slot id="{{ pickSlot }}" shape="rect" placeholder="拖一张这道菜的照片进来" style="width:100%;height:100%"></photo-slot>
+    <photo-slot id="{{ pickSlot }}" acts="off" shape="rect" placeholder="拖一张这道菜的照片进来" style="width:100%;height:100%"></photo-slot>
     <button onClick="{{ goHome }}" aria-label="返回首页" style="position:absolute;top:var(--cx-photo-btn-lg);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
     <div style="position:absolute;right:10px;bottom:-30px;width:118px;height:118px;pointer-events:none;z-index:2"><dc-import name="Chouxiang" state="success" hint-size="118px,118px"></dc-import></div>
   </div>
@@ -275,7 +275,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 <sc-if value="{{ atDetail }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="position:relative;height:250px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
-    <photo-slot id="{{ dishSlot }}" shape="rect" placeholder="拖照片进来" style="width:100%;height:100%"></photo-slot>
+    <photo-slot id="{{ dishSlot }}" acts="off" shape="rect" placeholder="拖照片进来" style="width:100%;height:100%"></photo-slot>
     <button onClick="{{ editDish }}" style="position:absolute;top:var(--cx-photo-btn);right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
     <button onClick="{{ goLibrary }}" aria-label="返回菜谱" style="position:absolute;top:var(--cx-photo-btn);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
   </div>
@@ -348,6 +348,15 @@ a{color:#8c491a}a:hover{color:#b2622d}
         </div>
       </div>
     </sc-if>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">每次吃的照片</span>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
+        <sc-for list="{{ dishLogShots }}" as="p" hint-placeholder-count="3">
+          <photo-slot id="{{ p.id }}" prefix="{{ p.prefix }}" data-group="{{ p.group }}" shape="rounded" radius="18" placeholder="{{ p.ph }}" style="width:100%;min-width:0;height:96px"></photo-slot>
+        </sc-for>
+      </div>
+      <span style="font:700 11px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.42)">每次「记一笔」传的照片都攒在这儿，点开看大图</span>
+    </div>
     <div style="display:flex;flex-direction:column;gap:9px">
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">备注</span>
       <sc-for list="{{ detail.notes }}" as="n" hint-placeholder-count="2">
@@ -437,7 +446,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 <sc-if value="{{ atRestDetail }}" hint-placeholder-val="{{ false }}">
 <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding-bottom:var(--cx-bot);animation:ap-fade .3s ease both">
   <div style="position:relative;height:230px;background:#e9dcc2;border-radius:0 0 46px 46px;flex:none;overflow:hidden">
-    <photo-slot id="{{ restSlotA }}" shape="rect" placeholder="拖店里的照片进来" style="width:100%;height:100%"></photo-slot>
+    <photo-slot id="{{ restSlotA }}" acts="off" shape="rect" placeholder="拖店里的照片进来" style="width:100%;height:100%"></photo-slot>
     <button onClick="{{ editRest }}" style="position:absolute;top:var(--cx-photo-btn);right:24px;min-height:44px;padding:0 17px;border:none;border-radius:999px;background:rgba(253,248,238,.9);font:800 12.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">编辑</button>
     <button onClick="{{ goRest }}" aria-label="返回餐厅列表" style="position:absolute;top:var(--cx-photo-btn);left:24px;width:44px;height:44px;border:none;border-radius:999px;background:rgba(253,248,238,.85);font:800 18px/1 Nunito;color:#8c491a;cursor:pointer;z-index:2" style-hover="background:#fdf8ee">←</button>
   </div>
@@ -2416,14 +2425,31 @@ class Component extends DCLogic {
     return u ? 'url("' + u + '")' : 'none';
   }
 
-  // 列表缩略图：先用成品照，没有就用第一张菜谱截图
+  // 列表缩略图：成品照 → 菜谱截图 → 打卡照片，凡是这道菜名下的图都算
   thumbOf(d) {
-    if (!window.PhotoStore) return '';
+    if (!window.PhotoStore || !d) return '';
     const all = window.PhotoStore.all();
     if (all['dish-' + d.id]) return all['dish-' + d.id];
-    for (let i = 0; i < 6; i++) if (all['dish-' + d.id + '-p' + i]) return all['dish-' + d.id + '-p' + i];
-    const legacy = ['-a', '-b', '-c'].map(x => all['dish-' + d.id + x]).filter(Boolean);
-    return legacy[0] || '';
+    if (all['dish-photo-' + d.id]) return all['dish-photo-' + d.id];
+    const pre = ['dish-' + d.id, 'dish-photo-' + d.id, 'dish-recipe-' + d.id, 'dishlog-' + d.id];
+    const keys = Object.keys(all).filter(k => pre.some(p => k.indexOf(p) === 0)).sort();
+    return keys.length ? all[keys[0]] : '';
+  }
+
+  // 这道菜历次打卡攒下的照片
+  dishLogGallery(d, cap) {
+    const all = window.PhotoStore ? window.PhotoStore.all() : {};
+    const pre = 'dishlog-' + d.id + '-';
+    const addPre = pre + 'add-p';
+    const g = pre + 'all';
+    const mk = (id, ph, filled) => ({ id: id, ph: ph, filled: filled, prefix: addPre, group: g });
+    const list = Object.keys(all).filter(k => k.indexOf(pre) === 0).sort().map(id => mk(id, '照片', true));
+    if (list.length < (cap || 60)) {
+      let n = 0;
+      while (all[addPre + n]) n++;
+      list.push(mk(addPre + n, list.length ? '再加几张' : '选照片，可以一次多张', false));
+    }
+    return list;
   }
 
   // 新建时照片先存在 …-new 名下，存好后搬到真正的 id 上，不然照片会「不见」
@@ -2909,6 +2935,7 @@ class Component extends DCLogic {
 
       detail: detail, detailMeta: dishMeta(detail), isCook: isCook,
       dishSlot: 'dish-' + detail.id,
+      dishLogShots: this.dishLogGallery(detail, 60),
       dishShots: this.gallery('dish-' + detail.id + '-p',
         ['dish-' + detail.id + '-a', 'dish-' + detail.id + '-b', 'dish-' + detail.id + '-c'], 6),
       detailIng: detail.ing || [], detailRecipe: detail.recipe || '还没存菜谱', detailDates: detail.dates || [],
