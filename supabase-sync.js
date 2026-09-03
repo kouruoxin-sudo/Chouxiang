@@ -87,6 +87,7 @@
     emit({ live: false });
   }
 
+  let photoTimer = null;
   if (!window.CloudSync) window.CloudSync = {
     state: () => Object.assign({}, state),
     config: cfg,
@@ -187,6 +188,8 @@
       const out = {};
       const wanted = [];
       const gone = goneOf(m);
+      const pdead = {};
+      (m.pdel || []).forEach(id => { pdead[id] = 1; });
       let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
@@ -199,6 +202,11 @@
         }
         // 本地删过但云端还没落地 → 这轮绝不往回装，等 push 去补删
         if (gone[r.key]) return;
+        // 全局照片删除名单：不交给 app，只用来从清单里减掉
+        if (r.kind === 'photodel') {
+          (r.payload.ids || []).forEach(id => { pdead[id] = 1; });
+          return;
+        }
         out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
         if (r.kind === 'photos') {
           sawManifest = true;
@@ -209,7 +217,9 @@
       (window.PhotoStore && window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
         if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
       });
-      m.wanted = sawManifest ? wanted : null;
+      m.wanted = sawManifest ? wanted.filter(id => !pdead[id]) : null;
+      m.pdel = Object.keys(pdead);
+      m.pdead = m.pdel;
       m.pulledAt = Date.now();
       writeJSON(META_KEY, m);
       await this.pullPhotos();
@@ -256,10 +266,37 @@
     // 把本地序列化后的哈希登记成「已同步」，但不推云端。
     // 用来终结乒乓：远端来的行落到本地后，本地重新序列化的结果往往和云端字节不同，
     // 不登记的话下一轮 push 会把它原样推回去，对方又收到、又推回来。
-    acceptLocal(rows) {
+    acceptLocal(rows, keys) {
       const m = meta();
-      Object.keys(rows || {}).forEach(k => { m.hashes[k] = hash(JSON.stringify(rows[k].payload)); });
+      // 只能登记确实从远端收到的那几个 key；
+      // 一次性把本机所有行都当成已同步，会把本机还没推上去的改动永久埋掉。
+      const list = keys && keys.length ? keys : [];
+      list.forEach(k => { if (rows && rows[k]) m.hashes[k] = hash(JSON.stringify(rows[k].payload)); });
       writeJSON(META_KEY, m);
+    },
+
+    photoTombstones() { return (meta().pdel || []).slice(); },
+
+    // 照片删除名单：清单是每台设备各存一份、取并集，
+    // 所以光从自己清单里拿掉没用，必预一份全局名单才能真删掉。
+    async markPhotosDeleted(ids) {
+      const list = (ids || []).filter(Boolean);
+      if (!list.length) return;
+      const m = meta();
+      if (!m.pdel) m.pdel = [];
+      list.forEach(id => { if (m.pdel.indexOf(id) < 0) m.pdel.push(id); });
+      list.forEach(id => { if (m.photos) delete m.photos[id]; if (m.pfiles) delete m.pfiles[id]; });
+      writeJSON(META_KEY, m);
+      const sb = await getClient();
+      if (!sb || !me) return;
+      const w = this.who() || 'cai';
+      try {
+        await sb.from(TABLE).upsert({
+          key: 'photodel:' + w, kind: 'photodel', who: w, owner: me.id,
+          payload: { ids: m.pdel }, deleted: false, updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+        await sb.storage.from(BUCKET).remove(list.map(id => id + '.webp'));
+      } catch (e) {}
     },
 
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
@@ -300,7 +337,13 @@
       const m0 = meta();
       const synced = m0.photos || {};
       // 云端清单（两个人的合集）就是真相：清单里没有、但本机同步过的 → 是被谁删了
+      // 对齐阶段自己清照片，不算用户删除
+      window.CloudSync.__quiet = true;
       const wanted = m0.wanted || null;
+      const pdead = {};
+      (m0.pdel || []).forEach(id => { pdead[id] = 1; });
+      // 全局名单里已删的，本机一律清掉（不管是否同步过）
+      Object.keys(local).forEach(id => { if (pdead[id]) window.PhotoStore.set(id, null); });
       if (wanted) {
         const keep = {};
         wanted.forEach(id => { keep[id] = 1; });
@@ -316,6 +359,7 @@
       for (const f of files || []) {
         const id = f.name.replace(/\.webp$/, '');
         if (wanted && wanted.indexOf(id) < 0) continue;
+        if (pdead[id]) continue;
         // 同一个 id 被对方换成了新照片 → 桶里的时间戳会变，那就重新下一遍
         const stamp = f.updated_at || (f.metadata && f.metadata.lastModified) || '';
         if (window.PhotoStore.get(id) && m1.pfiles[id] === stamp) continue;
@@ -339,11 +383,13 @@
         }
       }
       writeJSON(META_KEY, m1);
+      window.CloudSync.__quiet = false;
     },
 
     async pushPhotos() {
       const sb = await getClient();
       if (!sb || !window.PhotoStore) return;
+      window.CloudSync.__quiet = false;
       // 注意：这里不再做桶内清理。同步是先推后拉，此时 m.wanted 还是上一次的旧清单，
       // 拿旧清单删文件会把对方刚加的照片当成孤儿删掉。清理改到 pullPhotos 里做。
       await window.PhotoStore.ready();
@@ -351,6 +397,7 @@
       const local = window.PhotoStore.all();
       let n = 0;
       for (const id of Object.keys(local)) {
+        if ((m.pdel || []).indexOf(id) > -1) continue;   // 已删的别再传回去
         const stamp = local[id].length;
         if (m.photos[id] === stamp) continue;
         const blob = await dataUrlToBlob(local[id]);
@@ -363,6 +410,34 @@
       if (n) emit({ message: '又传了 ' + n + ' 张照片' });
     },
 
+    // 只重算照片清单并拉照片，不动其他数据行。实时收到对方清单变动时用。
+    async pullPhotosNow() {
+      const sb = await getClient();
+      if (!sb || !me || !window.PhotoStore) return;
+      const { data, error } = await sb.from(TABLE)
+        .select('key, kind, payload, deleted').in('kind', ['photos', 'photodel']);
+      if (error) return;
+      const m = meta();
+      const pdead = {};
+      (m.pdel || []).forEach(id => { pdead[id] = 1; });
+      const wanted = [];
+      let saw = false;
+      (data || []).forEach(r => {
+        if (r.deleted) return;
+        if (r.kind === 'photodel') { (r.payload.ids || []).forEach(id => { pdead[id] = 1; }); return; }
+        saw = true;
+        (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
+      });
+      (window.PhotoStore.ids ? window.PhotoStore.ids() : []).forEach(id => {
+        if (!(m.photos || {})[id] && wanted.indexOf(id) < 0) wanted.push(id);
+      });
+      m.wanted = saw ? wanted.filter(id => !pdead[id]) : null;
+      m.pdel = Object.keys(pdead);
+      writeJSON(META_KEY, m);
+      try { await this.pullPhotos(); } catch (e) {}
+      emit({ message: '照片已更新', lastSync: Date.now() });
+    },
+
     // ── 实时 ─────────────────────────────────────────────
     async live() {
       const sb = await getClient();
@@ -371,6 +446,12 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, p => {
           const r = p.new || {};
           if (!r.key || r.owner === me.id) return;   // 自己的改动不用提醒自己
+          // 对方动了照片 → 马上拉，不用等下次手动同步
+          if (r.kind === 'photos' || r.kind === 'photodel') {
+            clearTimeout(photoTimer);
+            photoTimer = setTimeout(() => { window.CloudSync.pullPhotosNow(); }, 1200);
+            if (r.kind === 'photodel') return;
+          }
           const m = meta();
           m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
           writeJSON(META_KEY, m);
@@ -395,6 +476,7 @@
         if (remote && applyRemote) applyRemote(remote);
         this.live();
       } catch (e) {
+        window.CloudSync.__quiet = false;
         emit(classify(e));
       }
     },
@@ -538,4 +620,20 @@
       '--    把 “Allow new users to sign up” 关掉，只留你们俩。'
     ].join('\n')
   };
+
+  // 把用户主动删照片这个动作接下来，写进全局删除名单。
+  // 同步自己对齐时也会调 set(id,null)，那种不算删除，用 quiet 标记避开。
+  (function hookPhotoStore() {
+    const ps = window.PhotoStore;
+    if (!ps || !ps.set || ps.__cxHooked) { if (!ps || !ps.set) return setTimeout(hookPhotoStore, 400); }
+    if (ps.__cxHooked) return;
+    const orig = ps.set.bind(ps);
+    ps.__cxHooked = true;
+    ps.set = function (id, val) {
+      if (val == null && !window.CloudSync.__quiet && window.CloudSync.markPhotosDeleted) {
+        window.CloudSync.markPhotosDeleted([id]);
+      }
+      return orig(id, val);
+    };
+  })();
 })();

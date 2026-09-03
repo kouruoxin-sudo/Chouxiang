@@ -1720,6 +1720,11 @@ class Component extends DCLogic {
     if (window.PhotoStore && window.PhotoStore.ids) {
       out['photos:' + who] = { kind: 'photos', who: who, payload: { ids: window.PhotoStore.ids().sort() } };
     }
+    // 照片删除名单也走正规行同步，别只靠单独那次云端写入
+    if (window.CloudSync && window.CloudSync.photoTombstones) {
+      const dead = window.CloudSync.photoTombstones();
+      if (dead.length) out['photodel:' + who] = { kind: 'photodel', who: who, payload: { ids: dead.sort() } };
+    }
     out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
@@ -1901,7 +1906,7 @@ class Component extends DCLogic {
     // 远端来的行就到此为止，不要再推回云端（否则两边互推，提示条会一直弹）
     if (window.CloudSync && window.CloudSync.acceptLocal) {
       clearTimeout(this.cloudTimer);
-      setTimeout(() => window.CloudSync.acceptLocal(this.rows()), 700);
+      setTimeout(() => window.CloudSync.acceptLocal(this.rows(), [row.key]), 700);
     }
     if (row.deleted) return;
     const name = this.nameOf(row.who || this.otherWho());
