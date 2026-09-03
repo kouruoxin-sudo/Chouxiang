@@ -32,7 +32,13 @@
     return c;
   }
   function meta() { return readJSON(META_KEY, { hashes: {}, photos: {}, gone: {}, pulledAt: null }); }
-  function goneOf(m) { if (!m.gone) m.gone = {}; return m.gone; }
+  function goneOf(m) {
+    if (!m.gone) m.gone = {};
+    // 旧版本曾用「本机没有就算删了」推断，把大量还活着的 key 写进了清单，
+    // 导致这些行永远拉不下来。一次性清空，并开启一次误删抢救。
+    if (m.goneV !== 2) { m.gone = {}; m.goneV = 2; writeJSON(META_KEY, m); }
+    return m.gone;
+  }
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h + ':' + s.length; };
 
   async function getClient() {
@@ -184,8 +190,13 @@
       let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
-        // 云端已确认删除 → 本地清单里这条可以销案了
-        if (r.deleted) { delete gone[r.key]; return; }
+        // 云端已确认删除 → 本地清单里这条可以销案了，
+        // 并且要把「已删除」这个事实带回去，否则对方删的东西在这台永远不消失
+        if (r.deleted) {
+          delete gone[r.key];
+          out[r.key] = { kind: r.kind, who: r.who, payload: {}, deleted: true };
+          return;
+        }
         // 本地删过但云端还没落地 → 这轮绝不往回装，等 push 去补删
         if (gone[r.key]) return;
         out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
@@ -214,9 +225,7 @@
       const up = [];
       Object.keys(rows).forEach(k => {
         const h = hash(JSON.stringify(rows[k].payload));
-        // 云端被标成删除、但本机还留着且没主动删过它 → 抢救回来（自动修复误删）
-        if (m.hashes[k] === '__deleted' && !goneOf(m)[k]) { /* 继续往下推，deleted:false */ }
-        else if (m.hashes[k] === h) return;
+        if (m.hashes[k] === h) return;
         up.push({
           key: k, kind: rows[k].kind, who: rows[k].who || this.who(),
           owner: me.id, payload: rows[k].payload, deleted: false,
@@ -302,34 +311,41 @@
       const { data: files, error } = await sb.storage.from(BUCKET).list('', { limit: 1000 });
       if (error) { state.photoErr = '读照片桶失败：' + error.message; throw error; }
       state.photoErr = '';
+      const m1 = meta();
+      if (!m1.pfiles) m1.pfiles = {};
       for (const f of files || []) {
         const id = f.name.replace(/\.webp$/, '');
-        if (window.PhotoStore.get(id)) continue;
         if (wanted && wanted.indexOf(id) < 0) continue;
-        const { data: blob } = await sb.storage.from(BUCKET).download(f.name);
-        if (blob) await window.PhotoStore.set(id, await blobToDataUrl(blob));
+        // 同一个 id 被对方换成了新照片 → 桶里的时间戳会变，那就重新下一遍
+        const stamp = f.updated_at || (f.metadata && f.metadata.lastModified) || '';
+        if (window.PhotoStore.get(id) && m1.pfiles[id] === stamp) continue;
+        const { data: blob } = await sb.storage.from(BUCKET).download(f.name + '?t=' + encodeURIComponent(stamp));
+        if (blob) {
+          await window.PhotoStore.set(id, await blobToDataUrl(blob));
+          m1.pfiles[id] = stamp;
+        }
       }
+      // 桶里有、两人清单都没有的文件 → 已被删除。
+      // 这一步必须用刚算出来的新清单，用旧清单会误删对方刚传的照片
+      if (wanted) {
+        const keep2 = {};
+        wanted.forEach(id => { keep2[id] = 1; });
+        const orphans = (files || [])
+          .map(f => f.name.replace(/\.webp$/, ''))
+          .filter(id => id !== '__probe' && !keep2[id]);
+        if (orphans.length) {
+          try { await sb.storage.from(BUCKET).remove(orphans.map(id => id + '.webp')); } catch (e) {}
+          orphans.forEach(id => { if (m1.photos) delete m1.photos[id]; delete m1.pfiles[id]; });
+        }
+      }
+      writeJSON(META_KEY, m1);
     },
 
     async pushPhotos() {
       const sb = await getClient();
       if (!sb || !window.PhotoStore) return;
-      // 桶里有、但两个人的清单里都没有的文件 → 已经被删了，清掉
-      const mm = meta();
-      const wanted = mm.wanted;
-      if (wanted) {
-        const keep = {};
-        wanted.forEach(id => { keep[id] = 1; });
-        const ls = await sb.storage.from(BUCKET).list('', { limit: 1000 });
-        const orphans = (ls.data || [])
-          .map(f => f.name.replace(/\.webp$/, ''))
-          .filter(id => id !== '__probe' && !keep[id]);
-        if (orphans.length) {
-          await sb.storage.from(BUCKET).remove(orphans.map(id => id + '.webp'));
-          orphans.forEach(id => { if (mm.photos) delete mm.photos[id]; });
-          writeJSON(META_KEY, mm);
-        }
-      }
+      // 注意：这里不再做桶内清理。同步是先推后拉，此时 m.wanted 还是上一次的旧清单，
+      // 拿旧清单删文件会把对方刚加的照片当成孤儿删掉。清理改到 pullPhotos 里做。
       await window.PhotoStore.ready();
       const m = meta();
       const local = window.PhotoStore.all();
