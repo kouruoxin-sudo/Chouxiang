@@ -979,7 +979,8 @@ a{color:#8c491a}a:hover{color:#b2622d}
           </span>
           <span style="font:700 11.5px/1.35 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ it.note }}</span>
         </span>
-        <span style="width:60px;height:60px;flex:none"><dc-import name="Chouxiang" state="{{ it.mood }}" hint-size="60px,60px"></dc-import></span>
+        <span style="width:48px;height:48px;flex:none"><dc-import name="Chouxiang" state="{{ it.mood }}" hint-size="48px,48px"></dc-import></span>
+        <button onClick="{{ it.onEdit }}" aria-label="编辑或删除这一笔" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#fdf8ee;color:#8c491a;font:800 15px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#f0e3c8">✎</button>
       </div>
     </sc-for>
     <sc-if value="{{ selEmpty }}" hint-placeholder-val="{{ false }}">
@@ -992,6 +993,47 @@ a{color:#8c491a}a:hover{color:#b2622d}
   <div style="padding:8px 24px 0">
     <button onClick="{{ goLibrary }}" style="width:100%;min-height:60px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 21px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d">{{ logLabel }}</button>
   </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atRecEdit }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:var(--cx-top) 28px var(--cx-bot);gap:16px;animation:ap-fade .3s ease both">
+  <div style="display:flex;align-items:center;gap:14px">
+    <button onClick="{{ backFromRecEdit }}" aria-label="返回" style="width:46px;height:46px;flex:none;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 16px/1 Nunito,sans-serif;cursor:pointer" style-hover="background:#eee0c4">←</button>
+    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+      <h2 style="margin:0;font:400 27px/1.1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">{{ recEditTitle }}</h2>
+      <span style="font:700 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.45)">{{ recEditSub }}</span>
+    </span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:9px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">哪一顿</span>
+    <div style="display:flex;gap:8px">
+      <sc-for list="{{ recEditSlots }}" as="s" hint-placeholder-count="4">
+        <button onClick="{{ s.onPick }}" style="flex:1;min-height:52px;border:none;border-radius:999px;background:{{ s.bg }};color:{{ s.fg }};font:400 20px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer">{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <label style="display:flex;flex-direction:column;gap:7px">
+    <span style="font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.12em;color:rgba(50,40,28,.45)">备注</span>
+    <textarea value="{{ recEditNote }}" onChange="{{ setRecEditNote }}" rows="3" placeholder="堆食 · 花了多少 · 一句感想" style="padding:14px 18px;border:none;border-radius:22px;background:#f6ecd8;font:700 13.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;resize:none;outline:none"></textarea>
+  </label>
+  <button onClick="{{ toggleRecEditTog }}" style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 18px;border:none;border-radius:999px;background:#f6ecd8;cursor:pointer">
+    <span style="width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:999px;background:{{ recEditTogBg }};color:#fdf8ee;font:800 13px/1 Nunito,sans-serif">✓</span>
+    <span style="font:700 13.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;white-space:nowrap">{{ recEditTogLabel }}</span>
+  </button>
+  <button onClick="{{ saveRecEdit }}" style="min-height:64px;border:none;border-radius:999px;background:#c67139;color:#fdf8ee;font:400 22px/1 'ZCOOL KuaiLe',sans-serif;cursor:pointer;box-shadow:0 10px 24px rgba(140,73,26,.26)" style-hover="background:#b2622d">存好</button>
+  <sc-if value="{{ recDelIdle }}" hint-placeholder-val="{{ true }}">
+    <button onClick="{{ armRecDel }}" style="min-height:52px;border:1.5px solid rgba(180,64,42,.38);border-radius:999px;background:transparent;color:#b4402a;font:800 13px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:rgba(180,64,42,.08)">删掉这一笔</button>
+  </sc-if>
+  <sc-if value="{{ recDelArmed }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:10px;padding:15px 17px;border-radius:24px;background:#f9e3d6">
+      <span style="font:700 12.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#8c2f1a">删掉就找不回来了，确定吗？</span>
+      <div style="display:flex;gap:9px">
+        <button onClick="{{ cancelRecDel }}" style="flex:1;min-height:50px;border:none;border-radius:999px;background:#fdf8ee;font:800 13px/1 Nunito,'Noto Sans SC',sans-serif;color:#3a2617;cursor:pointer">再想想</button>
+        <button onClick="{{ doDeleteRecItem }}" style="flex:1;min-height:50px;border:none;border-radius:999px;background:#b4402a;color:#fdf8ee;font:800 13px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer">删掉</button>
+      </div>
+    </div>
+  </sc-if>
 </div>
 </sc-if>
 
@@ -1323,7 +1365,7 @@ const DISHES = [
     tags: ['贵州', '鱼', '微辣', '暖身'],
     ing: ['黑鱼片', '红酸汤底', '番茄', '木耳', '花椒'], recipe: '小高姐 · 酸汤鱼',
     dates: ['7月21日', '6月14日'],
-    why: ['躺在想吃清单里 3 天了', '冰箱里的番茄明天到期', '你 41 天没吃过鱼', '今天有力气好好做一顿'],
+    why: ['躺在想吃清单里 3 天了', '你 41 天没吃过鱼', '今天有力气好好做一顿'],
     notes: ['酸汤底买贵州牌子的那个', '鱼片用蛋清抓一下更嫩'] },
   { id: 'steak', cn: '牛排', en: 'Steak', how: 'cook', cost: 18, days: 12, times: 15, score: 4.5,
     minutes: 20, band: 'feast', kcal: 690,
@@ -1337,7 +1379,7 @@ const DISHES = [
     tags: ['家常', '清淡', '十分钟', '省钱'],
     ing: ['番茄', '鸡蛋', '糖'], recipe: '妈妈教的，没有链接',
     dates: ['8月26日', '8月20日', '8月11日'],
-    why: ['最快的一道', '冰箱有全部材料', '你从来没给它打过差评'],
+    why: ['最快的一道', '你从来没给它打过差评'],
     notes: ['糖比盐重要', '蛋液里加一勺水更嫩'] },
   { id: 'noodle', cn: '兰州拉面', en: 'Lanzhou Beef Noodles', how: 'out', cost: 13.5, days: 19, times: 11, score: 4.6,
     travel: 8, price: 13.5, rest: 'lanzhou',
@@ -1723,7 +1765,7 @@ class Component extends DCLogic {
     detailId: 'dpj', restId: 'lanzhou',
     want: ['fish', 'hotpot'], justLogged: false,
     cur: 0, lowBand: 15, highBand: 35,
-    visits: {}, pvisits: {}, form: { dayOffset: 0, mode: '堂食', amt: 15, note: '好吃，会再来', by: '', together: true, wait: 0 },
+    visits: {}, pvisits: {}, wantGone: {}, recEdit: null, recDelArm: false, form: { dayOffset: 0, mode: '堂食', amt: 15, note: '好吃，会再来', by: '', together: true, wait: 0 },
     who: '', authUser: null, authReady: false,
     loginEmail: '', loginPw: '', loginErr: '', loggingIn: false, toasts: [],
     diag: null, diagging: false, diagCopied: false,
@@ -1742,10 +1784,13 @@ class Component extends DCLogic {
     const st = this.state, who = this.meWho(), out = {};
     DISHES.forEach(d => { out['dish:' + d.id] = { kind: 'dish', who: who, payload: d }; });
     RESTAURANTS.forEach(r => { out['rest:' + r.id] = { kind: 'rest', who: who, payload: r }; });
+    // 两个人的当天记录都写成行：这样任一台设备都能编辑/删除记录，不只能改自己的
     [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
       Object.keys(pair[1]).forEach(day => {
-        const mine = (pair[1][day] || []).filter(it => (it.by || 'cai') === who);
-        if (mine.length) out[pair[0] + ':' + day + ':' + who] = { kind: pair[0], who: who, payload: { day: day, items: mine } };
+        ['cai', 'guo'].forEach(w => {
+          const mine = (pair[1][day] || []).filter(it => (it.by || 'cai') === w);
+          if (mine.length) out[pair[0] + ':' + day + ':' + w] = { kind: pair[0], who: w, payload: { day: day, items: mine } };
+        });
       });
     });
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
@@ -1769,7 +1814,7 @@ class Component extends DCLogic {
       const dead = window.CloudSync.photoTombstones();
       if (Object.keys(dead).length) out['photodel:' + who] = { kind: 'photodel', who: who, payload: { del: dead } };
     }
-    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
+    out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, wantGone: st.wantGone || {}, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
 
@@ -1850,12 +1895,15 @@ class Component extends DCLogic {
       if (p.highBand != null) patch.highBand = p.highBand;
     }
     // 纪念日、封面、想吃清单：两个人共用一份，两边的记录都合起来
-    const shared = { fests: [], covers: {}, want: [] };
+    const shared = { fests: [], covers: {}, want: [], wantGone: {} };
+    Object.assign(shared.wantGone, this.state.wantGone || {});
     ['pref:' + me, 'pref:' + other].forEach(k => {
       const p = map[k] && map[k].payload;
       if (!p) return;
       (p.fests || []).forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
       Object.assign(shared.covers, p.covers || {});
+      const wg = p.wantGone || {};
+      Object.keys(wg).forEach(id => { shared.wantGone[id] = Math.max(shared.wantGone[id] || 0, wg[id] || 1); });
       (p.want || []).forEach(w => { if (shared.want.indexOf(w) < 0) shared.want.push(w); });
     });
     if (map['pref:' + me] || map['pref:' + other]) {
@@ -1863,7 +1911,10 @@ class Component extends DCLogic {
       mine.forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
       patch.fests = shared.fests;
       patch.covers = Object.assign({}, this.state.covers, shared.covers);
-      patch.want = shared.want.length ? shared.want : (patch.want || this.state.want);
+      // 「想吃」两人共用一份，取并集；但明确移除过的要减掉——
+      // 否则自己删了、对方清单里还有，一同步就又回来了
+      patch.want = shared.want.filter(id => !shared.wantGone[id]);
+      patch.wantGone = shared.wantGone;
     }
     if (Object.keys(patch).length) this.setState(patch);
     this.forceUpdate();
@@ -2108,7 +2159,10 @@ class Component extends DCLogic {
 
   toggleWant(id) {
     const has = this.state.want.indexOf(id) > -1;
-    this.setState({ want: has ? this.state.want.filter(w => w !== id) : this.state.want.concat([id]) });
+    // 移除时记一笔，否则对方的清单一同步就把它带回来；重新加时销掉
+    const wg = Object.assign({}, this.state.wantGone || {});
+    if (has) wg[id] = Date.now(); else delete wg[id];
+    this.setState({ wantGone: wg, want: has ? this.state.want.filter(w => w !== id) : this.state.want.concat([id]) });
   }
 
   patchForm(p) { this.setState({ form: Object.assign({}, this.state.form, p) }); }
@@ -2123,7 +2177,7 @@ class Component extends DCLogic {
     const st = this.state;
     return {
       dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
-      visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, cur: st.cur,
+      visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, wantGone: st.wantGone, cur: st.cur,
       lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers, gone: st.gone
     };
   }
@@ -2136,7 +2190,7 @@ class Component extends DCLogic {
     fill(RECORDS, data.records); fill(PLANS, data.plans);
     this.setState({
       visits: data.visits || {}, pvisits: data.pvisits || {},
-      who: data.who || this.state.who, want: data.want || [],
+      who: data.who || this.state.who, want: data.want || [], wantGone: data.wantGone || {},
       cur: data.cur != null ? data.cur : this.state.cur,
       lowBand: data.lowBand != null ? data.lowBand : this.state.lowBand,
       highBand: data.highBand != null ? data.highBand : this.state.highBand,
@@ -2523,6 +2577,9 @@ class Component extends DCLogic {
     const visits = Object.assign({}, this.state.visits);
     delete visits[id];
     this.setState({ screen: 'rest', tabsOpen: true, visits: visits, editingRest: null, confirmDel: false,
+      // 删掉的店还留在想吃清单里的话，那条就查不到名字了
+      want: this.state.want.filter(w => w !== id),
+      wantGone: Object.assign({}, this.state.wantGone || {}, { [id]: Date.now() }),
       restId: RESTAURANTS[0] ? RESTAURANTS[0].id : '' });
   }
 
@@ -2696,6 +2753,63 @@ class Component extends DCLogic {
     this.setState({ screen: 'detail', detailId: id, editingDish: null, confirmDel: false });
   }
 
+  // ── 饮食记录：改一笔 / 删一笔 ────────────────────
+  recKey(it) { return (it.slot || '') + '|' + (it.cn || ''); }
+
+  openRecEdit(it) {
+    this.go('recEdit', {
+      recDelArm: false,
+      recEdit: { day: it.day, k: this.recKey(it), isPlan: !!it.isPlan, cn: it.cn,
+                 slot: it.slot || '晓', note: it.note || '', together: !!it.together }
+    });
+  }
+
+  patchRecEdit(patch) {
+    this.setState({ recEdit: Object.assign({}, this.state.recEdit, patch) });
+  }
+
+  saveRecEdit() {
+    const e = this.state.recEdit;
+    if (!e) return this.go('diary');
+    const box = e.isPlan ? PLANS : RECORDS;
+    box[e.day] = (box[e.day] || []).map(it => this.recKey(it) === e.k
+      ? Object.assign({}, it, { slot: e.slot, note: e.note, together: !!e.together })
+      : it);
+    this.touchRecDay(e.isPlan, e.day);
+    this.go('diary', { recEdit: null, recDelArm: false });
+  }
+
+  deleteRecItem() {
+    const e = this.state.recEdit;
+    if (!e) return this.go('diary');
+    const box = e.isPlan ? PLANS : RECORDS;
+    const kept = (box[e.day] || []).filter(it => this.recKey(it) !== e.k);
+    if (kept.length) box[e.day] = kept; else delete box[e.day];
+    this.touchRecDay(e.isPlan, e.day);
+    this.go('diary', { recEdit: null, recDelArm: false });
+  }
+
+  // 改完一天的记录后：空了的行告诉云端删除，又有内容的行把删除标记销掉
+  touchRecDay(isPlan, day) {
+    const kind = isPlan ? 'plan' : 'record';
+    const items = (isPlan ? PLANS : RECORDS)[day] || [];
+    const gone = (this.state.gone || []).slice();
+    ['cai', 'guo'].forEach(w => {
+      const key = kind + ':' + day + ':' + w;
+      const has = items.some(it => (it.by || 'cai') === w);
+      const i = gone.indexOf(key);
+      if (!has) {
+        if (i < 0) gone.push(key);
+        if (window.CloudSync && window.CloudSync.markDeleted) window.CloudSync.markDeleted([key]);
+      } else if (i > -1) {
+        gone.splice(i, 1);
+        if (window.CloudSync && window.CloudSync.unmarkDeleted) window.CloudSync.unmarkDeleted([key]);
+      }
+    });
+    this.setState({ gone: gone });
+    setTimeout(() => this.cloudSync(), 400);
+  }
+
   deleteDish() {
     const id = this.state.editingDish;
     const i = DISHES.map(d => d.id).indexOf(id);
@@ -2703,6 +2817,7 @@ class Component extends DCLogic {
     this.markGone('dish:' + id);
     this.setState({ screen: 'library', tabsOpen: true, editingDish: null, confirmDel: false,
       want: this.state.want.filter(w => w !== id),
+      wantGone: Object.assign({}, this.state.wantGone || {}, { [id]: Date.now() }),
       detailId: DISHES[0] ? DISHES[0].id : '' });
   }
 
@@ -2805,13 +2920,28 @@ class Component extends DCLogic {
         tagFg: both ? '#7a4413' : (it.whos[0] === 'guo' ? '#56633f' : '#8c491a')
       };
     };
-    const selItems = mergeDay(RECORDS[selKey]).map(it => Object.assign({}, it, stamp(it), {
+    const mkRow = (it, isPlan, skin) => Object.assign({}, it, stamp(it), skin, {
+      day: selKey, isPlan: isPlan,
+      onEdit: () => this.openRecEdit(Object.assign({}, it, { day: selKey, isPlan: isPlan }))
+    });
+    const selItems = mergeDay(RECORDS[selKey]).map(it => mkRow(it, false, {
       bg: '#f6ecd8', border: '2px solid transparent', slotColor: '#8c491a'
-    })).concat(mergeDay(PLANS[selKey]).map(it => Object.assign({}, it, stamp(it), {
+    })).concat(mergeDay(PLANS[selKey]).map(it => mkRow(it, true, {
       bg: 'transparent', border: '2px dashed rgba(143,160,115,.6)', slotColor: '#6f7f52'
     })));
     const q = flow[Math.min(st.qi, flow.length - 1)];
     const ranked = this.rank(st.answers);
+    // 删掉的菜/店可能还留在想吃清单里：查不到就不显示，别渲染成 undefined
+    const wantRows = () => st.want.map(id => {
+      const d = DISHES.filter(x => x.id === id)[0];
+      const rr = RESTAURANTS.filter(x => x.id === id)[0];
+      if (!d && !rr) return null;
+      return {
+        cn: (d || rr).cn,
+        note: d ? dishMeta(d) : [rr.cuisine, rr.city].filter(Boolean).join(' · '),
+        onRemove: () => this.toggleWant(id)
+      };
+    }).filter(Boolean);
     const order = ranked.list;
     const pick = order.length ? order[st.pickIdx % order.length]
       : { kind: 'none', id: 'none', cn: '这一类还是空的', en: '', tags: [], why: ['先去加一道菜谱，或者加一家店'] };
@@ -3447,12 +3577,30 @@ class Component extends DCLogic {
       selEmpty: selItems.length === 0,
       selEmptyText: selFuture ? '这天还没计划吃什么' : '这天没有记录',
       logLabel: selFuture ? '计划一顿' : '记一笔',
-      wantCount: st.want.length,
-      wantEmpty: st.want.length === 0,
-      wantList: st.want.map(id => {
-        const d = DISHES.filter(x => x.id === id)[0];
-        return { cn: d.cn, note: dishMeta(d), onRemove: () => this.toggleWant(id) };
-      }),
+      wantCount: wantRows().length,
+      wantEmpty: wantRows().length === 0,
+      wantList: wantRows(),
+
+      atRecEdit: at('recEdit'),
+      recEditTitle: st.recEdit ? st.recEdit.cn : '',
+      recEditSub: st.recEdit ? (st.recEdit.isPlan ? '这是一条用餐计划' : '这是一笔饮食记录') : '',
+      recEditSlots: ['晓', '午', '晚', '夜'].map(s => ({
+        label: s, onPick: () => this.patchRecEdit({ slot: s }),
+        bg: st.recEdit && st.recEdit.slot === s ? '#c67139' : '#f6ecd8',
+        fg: st.recEdit && st.recEdit.slot === s ? '#fdf8ee' : 'rgba(50,40,28,.55)'
+      })),
+      recEditNote: st.recEdit ? st.recEdit.note || '' : '',
+      setRecEditNote: e => this.patchRecEdit({ note: e.target.value }),
+      recEditTogBg: st.recEdit && st.recEdit.together ? '#8fa073' : 'rgba(50,40,28,.18)',
+      recEditTogLabel: st.recEdit && st.recEdit.together ? '两个人一起吃的' : '一个人吃的',
+      toggleRecEditTog: () => this.patchRecEdit({ together: !(st.recEdit && st.recEdit.together) }),
+      saveRecEdit: () => this.saveRecEdit(),
+      backFromRecEdit: () => this.go('diary', { recEdit: null, recDelArm: false }),
+      recDelArmed: !!st.recDelArm,
+      recDelIdle: !st.recDelArm,
+      armRecDel: () => this.setState({ recDelArm: true }),
+      cancelRecDel: () => this.setState({ recDelArm: false }),
+      doDeleteRecItem: () => this.deleteRecItem(),
       tabs: TABS.map(t => ({
         cn: t.cn, onPick: () => this.go(t.id),
         bg: st.screen === t.id ? '#f6ecd8' : 'transparent',

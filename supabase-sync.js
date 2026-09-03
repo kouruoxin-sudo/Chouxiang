@@ -331,6 +331,14 @@
     },
 
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
+    unmarkDeleted(keys) {
+      const m = meta();
+      const gm = goneOf(m);
+      (keys || []).forEach(k => { delete gm[k]; if (m.hashes[k] === '__deleted') delete m.hashes[k]; });
+      writeJSON(META_KEY, m);
+    },
+
+    // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
     async markDeleted(keys, photoIds) {
       const sb = await getClient();
       if (!sb || !me || !keys || !keys.length) return;
