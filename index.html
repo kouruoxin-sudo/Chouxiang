@@ -13,32 +13,6 @@
 <meta name="theme-color" content="#ecb75e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>
-// 键盘弹出时浏览器会把「可视视口」整体上推，文档层面滚不回来。
-// 这里直接把 app 钉在可视视口上：高度 = visualViewport.height，再把被推走的 offsetTop 补回来。
-(function () {
-  var vv = window.visualViewport;
-  var root = document.documentElement;
-  var apply = function () {
-    var h = vv ? vv.height : window.innerHeight;
-    var off = vv ? Math.max(0, vv.offsetTop) : 0;
-    root.style.setProperty('--cx-vh', h + 'px');
-    root.style.setProperty('--cx-vvtop', off + 'px');
-    if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
-    if (root.scrollTop) root.scrollTop = 0;
-    if (document.body.scrollTop) document.body.scrollTop = 0;
-  };
-  var later = function () { apply(); setTimeout(apply, 60); setTimeout(apply, 260); setTimeout(apply, 700); };
-  if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply); }
-  window.addEventListener('resize', apply);
-  window.addEventListener('focusin', later, true);
-  window.addEventListener('focusout', later, true);
-  window.addEventListener('orientationchange', later);
-  window.addEventListener('pageshow', later);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) later(); });
-  later();
-})();
-</script>
 <style>
 /* 输入框字号不到 16px 时 iOS 会自动放大页面，放大后就再也回不去了 */
 input, textarea, select { font-size: 16px !important; }
@@ -51,8 +25,8 @@ input, textarea, select { font-size: 16px !important; }
 <script src="./cloud-config.js"></script>
 <script src="./supabase-sync.js"></script>
 <style>
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html{min-height:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100dvh;overflow-x:hidden;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 /* 全 app 共用的一套边距变量：桌面预览留灵动岛，真机上贴浏览器视口顶部 */
 :root{
   --cx-top:70px; --cx-top-lg:96px; --cx-top-md:76px; --cx-toast:52px;
@@ -61,14 +35,12 @@ body{margin:0;background:#e8dcc6;font-family:Nunito,"Noto Sans SC",system-ui,san
   --cx-photo-btn:66px; --cx-photo-btn-lg:62px;
 }
 @media (max-width:720px){
-  /* 整页钉死在视口上：文档层面没有可滚动的东西，键盘就顶不动它 */
-  html{height:var(--cx-vh,100svh);overflow:hidden;overscroll-behavior:none}
-  /* top 用可视视口偏移补偿：键盘把视口推上去多少，body 就往下挪回来多少 */
-  body{position:fixed;top:var(--cx-vvtop,0px);left:0;right:0;bottom:auto;width:100%;
-       height:var(--cx-vh,100svh);
-       overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
+  /* 让 iOS 自己管理可视视口；页面内部负责滚动，不再固定 body 或强制归零 scroll。 */
+  html{min-height:100%;overflow-x:hidden}
+  body{position:static;width:100%;min-height:100dvh;overflow-x:hidden;overflow-y:auto;
+       overscroll-behavior-y:none;touch-action:pan-y}
   body{background:#fdf8ee}
-  .cx-shell{padding:0!important;gap:0!important;flex-wrap:nowrap!important}
+  .cx-shell{min-height:100dvh;padding:0!important;gap:0!important;flex-wrap:nowrap!important}
   .cx-shell>div{gap:0!important;width:100%}
   .cx-label{display:none!important}
   :root{
@@ -140,7 +112,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
 </sc-if>
 
 <sc-if value="{{ atHome }}" hint-placeholder-val="{{ true }}">
-<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
   <div style="position:relative;height:var(--cx-hero);background:#ecb75e;border-radius:0 0 52px 52px;overflow:hidden;flex:none">
     <div style="position:absolute;top:var(--cx-greet);left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;font:700 12px/1 Nunito,'Noto Sans SC',sans-serif;letter-spacing:.1em;color:rgba(70,44,16,.62)"><span>{{ greeting }}</span><span>{{ todayLabel }}</span></div>
     <button onClick="{{ tapMascot }}" aria-label="敲两下臭翔，他会跟你说话" style="position:absolute;top:var(--cx-masctop);left:50%;transform:translateX(-50%);width:var(--cx-mascot);height:var(--cx-mascot);border:none;background:transparent;padding:0;cursor:pointer"><dc-import name="Chouxiang" state="{{ homeMascot }}" hint-size="372px,372px"></dc-import></button>
@@ -1725,6 +1697,8 @@ class Component extends DCLogic {
     const keys = Object.keys(map || {});
     if (!keys.length && !full) return;
     const me = this.meWho(), other = this.otherWho();
+    // 本机已经删除但尚未成功推上云端的 key，不能被一次较旧的 pull 复活。
+    const localGone = new Set(this.state.gone || []);
     // 云端标记删除的行要真的删掉 —— 之前这里没处理，所以删除不会同步过来
     const dead = keys.filter(k => map[k] && map[k].deleted);
     if (dead.length) {
@@ -1749,9 +1723,11 @@ class Component extends DCLogic {
       this.setState({ gone: (this.state.gone || []).concat(dead).filter((k, i, a) => a.indexOf(k) === i) });
       keys.forEach(() => {});
     }
-    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted));
+    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0
+      && !(map[x] && map[x].deleted) && !localGone.has(x));
+    const cloudHasKind = k => keys.some(x => x.indexOf(k + ':') === 0);
 
-    if (full && kinds('dish').length) {
+    if (full && cloudHasKind('dish')) {
       DISHES.length = 0;
       kinds('dish').forEach(k => DISHES.push(map[k].payload));
     } else {
@@ -1760,7 +1736,7 @@ class Component extends DCLogic {
         if (i > -1) DISHES[i] = d; else DISHES.push(d);
       });
     }
-    if (full && kinds('rest').length) {
+    if (full && cloudHasKind('rest')) {
       RESTAURANTS.length = 0;
       kinds('rest').forEach(k => RESTAURANTS.push(map[k].payload));
     } else {
@@ -2569,9 +2545,13 @@ class Component extends DCLogic {
       });
     }
     if (window.CloudSync && window.CloudSync.markDeleted) {
-      window.CloudSync.markDeleted([key]);
+      // 先等 tombstone 真正写入，再拉云端；固定等 400ms 会产生竞态，
+      // 慢网时旧行会先被拉回来，看起来像「删除后又复活」。
+      const sent = window.CloudSync.markDeleted([key], shots);
+      if (sent && typeof sent.then === 'function') {
+        sent.then(ok => { if (ok) this.cloudSync(); });
+      }
     }
-    setTimeout(() => this.cloudSync(), 400);
   }
 
   // 新建时照片先存在 …-new 名下，存好后搬到真正的 id 上，不然照片会「不见」

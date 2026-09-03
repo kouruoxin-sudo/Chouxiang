@@ -172,8 +172,13 @@
       let sawManifest = false;
       (data || []).forEach(r => {
         m.hashes[r.key] = r.deleted ? '__deleted' : hash(JSON.stringify(r.payload));
+        // 删除行也必须交给页面。旧逻辑在这里直接 return，导致 applyRows 永远
+        // 收不到 tombstone，云端删除后本地对象就可能被下一次同步重新加入。
+        out[r.key] = {
+          kind: r.kind, who: r.who, payload: r.deleted ? {} : r.payload,
+          mine: r.owner === me.id, deleted: !!r.deleted
+        };
         if (r.deleted) return;
-        out[r.key] = { kind: r.kind, who: r.who, payload: r.payload, mine: r.owner === me.id };
         if (r.kind === 'photos') {
           sawManifest = true;
           (r.payload.ids || []).forEach(id => { if (wanted.indexOf(id) < 0) wanted.push(id); });
@@ -228,14 +233,14 @@
     // 明确告诉云端「这几行删了」——不依赖本地 hash 记录，删除一定推得上去
     async markDeleted(keys, photoIds) {
       const sb = await getClient();
-      if (!sb || !me || !keys || !keys.length) return;
+      if (!sb || !me || !keys || !keys.length) return false;
       const m = meta();
       const up = keys.map(k => ({
         key: k, kind: k.split(':')[0], who: this.who(), owner: me.id,
         payload: {}, deleted: true, updated_at: new Date().toISOString()
       }));
       const { error } = await sb.from(TABLE).upsert(up, { onConflict: 'key' });
-      if (error) { emit(classify(error)); return; }
+      if (error) { emit(classify(error)); return false; }
       keys.forEach(k => { m.hashes[k] = '__deleted'; });
       // 顺手把照片从桶里删掉，别让对方再拉一遍
       if (photoIds && photoIds.length) {
@@ -244,6 +249,7 @@
       }
       writeJSON(META_KEY, m);
       emit({ status: 'online', message: '删除已同步', lastSync: Date.now() });
+      return true;
     },
 
     // 我能删的行：菜谱 / 餐厅是两个人共用的，带对方名字的记录行不许我碰
