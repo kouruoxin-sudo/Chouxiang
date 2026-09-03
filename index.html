@@ -1677,7 +1677,7 @@ class Component extends DCLogic {
     fests: [{ id: 'f-demo', name: '我们在一起', md: '03-14', y: 2023 }],
     festForm: { name: '', m: '', d: '', y: '' }, festMsg: '',
     clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true, logId: 0 },
-    covers: {}
+    covers: {}, gone: []
   };
 
   meWho() { return this.state.who || 'cai'; }
@@ -1696,6 +1696,8 @@ class Component extends DCLogic {
       });
     });
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
+    // 自己删掉的东西记成墓碑，保证删除一定会推上去
+    (st.gone || []).forEach(k => { delete out[k]; });
     out['pref:' + who] = { kind: 'pref', who: who, payload: { want: st.want, cur: st.cur, lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers } };
     return out;
   }
@@ -1705,7 +1707,31 @@ class Component extends DCLogic {
     const keys = Object.keys(map || {});
     if (!keys.length && !full) return;
     const me = this.meWho(), other = this.otherWho();
-    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0);
+    // 云端标记删除的行要真的删掉 —— 之前这里没处理，所以删除不会同步过来
+    const dead = keys.filter(k => map[k] && map[k].deleted);
+    if (dead.length) {
+      dead.forEach(k => {
+        const id = k.slice(k.indexOf(':') + 1);
+        if (k.indexOf('dish:') === 0) {
+          const i = DISHES.findIndex(x => x.id === id);
+          if (i > -1) DISHES.splice(i, 1);
+        } else if (k.indexOf('rest:') === 0) {
+          const i = RESTAURANTS.findIndex(x => x.id === id);
+          if (i > -1) RESTAURANTS.splice(i, 1);
+        } else if (k.indexOf('record:') === 0 || k.indexOf('plan:') === 0) {
+          const box = k.indexOf('record:') === 0 ? RECORDS : PLANS;
+          const parts = id.split(':');
+          const day = parts[0], w = parts[1] || 'cai';
+          if (box[day]) {
+            const kept = box[day].filter(it => (it.by || 'cai') !== w);
+            if (kept.length) box[day] = kept; else delete box[day];
+          }
+        }
+      });
+      this.setState({ gone: (this.state.gone || []).concat(dead).filter((k, i, a) => a.indexOf(k) === i) });
+      keys.forEach(() => {});
+    }
+    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted));
 
     if (full && kinds('dish').length) {
       DISHES.length = 0;
@@ -1844,7 +1870,7 @@ class Component extends DCLogic {
   }
 
   remoteRow(row) {
-    this.applyRows({ [row.key]: row }, false);
+    this.applyRows({ [row.key]: { kind: row.kind, who: row.who, payload: row.payload, deleted: !!row.deleted } }, false);
     if (row.deleted) return;
     const name = this.nameOf(row.who || this.otherWho());
     const p = row.payload || {};
@@ -2017,7 +2043,7 @@ class Component extends DCLogic {
     return {
       dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
       visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, cur: st.cur,
-      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers
+      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers, gone: st.gone
     };
   }
 
@@ -2034,7 +2060,8 @@ class Component extends DCLogic {
       lowBand: data.lowBand != null ? data.lowBand : this.state.lowBand,
       highBand: data.highBand != null ? data.highBand : this.state.highBand,
       fests: data.fests || this.state.fests,
-      covers: data.covers || this.state.covers
+      covers: data.covers || this.state.covers,
+      gone: data.gone || this.state.gone
     });
   }
 
@@ -2411,6 +2438,7 @@ class Component extends DCLogic {
     const id = this.state.editingRest;
     const i = RESTAURANTS.map(r => r.id).indexOf(id);
     if (i > -1) RESTAURANTS.splice(i, 1);
+    this.markGone('rest:' + id);
     const visits = Object.assign({}, this.state.visits);
     delete visits[id];
     this.setState({ screen: 'rest', tabsOpen: true, visits: visits, editingRest: null, confirmDel: false,
@@ -2507,6 +2535,27 @@ class Component extends DCLogic {
     return list;
   }
 
+  // 删掉的东西记一笔墓碑，并顺手清掉它的照片，然后立刻推给云端
+  markGone(key) {
+    const gone = (this.state.gone || []).concat([key]).filter((k, i, a) => a.indexOf(k) === i);
+    this.setState({ gone: gone });
+    const shots = [];
+    if (window.PhotoStore) {
+      const id = key.slice(key.indexOf(':') + 1);
+      const pres = key.indexOf('dish:') === 0
+        ? ['dish-' + id, 'dish-photo-' + id, 'dish-recipe-' + id, 'dishlog-' + id + '-']
+        : ['rest-' + id + '-', 'rest-photo-' + id, 'checkin-' + id + '-'];
+      const all = window.PhotoStore.all();
+      Object.keys(all).forEach(k => {
+        if (pres.some(p => k === p || k.indexOf(p) === 0)) { shots.push(k); window.PhotoStore.set(k, null); }
+      });
+    }
+    if (window.CloudSync && window.CloudSync.markDeleted) {
+      window.CloudSync.markDeleted([key], shots);
+    }
+    setTimeout(() => this.cloudSync(), 400);
+  }
+
   // 新建时照片先存在 …-new 名下，存好后搬到真正的 id 上，不然照片会「不见」
   movePhotos(fromPre, toPre) {
     if (!window.PhotoStore) return;
@@ -2570,6 +2619,7 @@ class Component extends DCLogic {
     const id = this.state.editingDish;
     const i = DISHES.map(d => d.id).indexOf(id);
     if (i > -1) DISHES.splice(i, 1);
+    this.markGone('dish:' + id);
     this.setState({ screen: 'library', tabsOpen: true, editingDish: null, confirmDel: false,
       want: this.state.want.filter(w => w !== id),
       detailId: DISHES[0] ? DISHES[0].id : '' });
