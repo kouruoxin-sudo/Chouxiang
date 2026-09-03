@@ -80,7 +80,7 @@
     emit({ live: false });
   }
 
-  window.CloudSync = {
+  if (!window.CloudSync) window.CloudSync = {
     state: () => Object.assign({}, state),
     config: cfg,
     configured() { const c = cfg(); return !!(c.url && c.key); },

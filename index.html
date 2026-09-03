@@ -253,7 +253,7 @@ a{color:#8c491a}a:hover{color:#b2622d}
           <sc-if value="{{ d.noThumb }}" hint-placeholder-val="{{ true }}">
             <span style="position:absolute;inset:0;display:grid;place-items:center;padding:7px;box-sizing:border-box;opacity:.85"><dc-import name="Chouxiang" state="still" hint-size="52px,52px"></dc-import></span>
           </sc-if>
-          <span style="position:absolute;inset:0;background-size:cover;background-position:center;background-image:{{ d.thumbBg }}"></span>
+          {{ d.thumbEl }}
         </span>
         <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
           <span style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
@@ -1676,7 +1676,7 @@ class Component extends DCLogic {
     diag: null, diagging: false, diagCopied: false,
     fests: [{ id: 'f-demo', name: '我们在一起', md: '03-14', y: 2023 }],
     festForm: { name: '', m: '', d: '', y: '' }, festMsg: '',
-    clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true },
+    clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true, logId: 0 },
     covers: {}
   };
 
@@ -1742,7 +1742,7 @@ class Component extends DCLogic {
 
     const patch = {};
     if (map['visit:' + other]) patch.pvisits = map['visit:' + other].payload || {};
-    if (full && !map['visit:' + other]) patch.pvisits = {};
+    if (full && !map['visit:' + other] && !map['visit:' + me]) patch.pvisits = {};
     if (map['visit:' + me]) patch.visits = map['visit:' + me].payload || {};
     const pref = map['pref:' + me];
     if (pref && pref.payload) {
@@ -1751,8 +1751,22 @@ class Component extends DCLogic {
       if (p.cur != null) patch.cur = p.cur;
       if (p.lowBand != null) patch.lowBand = p.lowBand;
       if (p.highBand != null) patch.highBand = p.highBand;
-      if (p.fests) patch.fests = p.fests;
-      if (p.covers) patch.covers = Object.assign({}, this.state.covers, p.covers);
+    }
+    // 纪念日、封面、想吃清单：两个人共用一份，两边的记录都合起来
+    const shared = { fests: [], covers: {}, want: [] };
+    ['pref:' + me, 'pref:' + other].forEach(k => {
+      const p = map[k] && map[k].payload;
+      if (!p) return;
+      (p.fests || []).forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
+      Object.assign(shared.covers, p.covers || {});
+      (p.want || []).forEach(w => { if (shared.want.indexOf(w) < 0) shared.want.push(w); });
+    });
+    if (map['pref:' + me] || map['pref:' + other]) {
+      const mine = this.state.fests || [];
+      mine.forEach(f => { if (!shared.fests.some(x => x.id === f.id)) shared.fests.push(f); });
+      patch.fests = shared.fests;
+      patch.covers = Object.assign({}, this.state.covers, shared.covers);
+      patch.want = shared.want.length ? shared.want : (patch.want || this.state.want);
     }
     if (Object.keys(patch).length) this.setState(patch);
     this.forceUpdate();
@@ -2122,7 +2136,7 @@ class Component extends DCLogic {
   openDishLog(d) {
     this.go('dishLog', {
       clog: { dayOffset: 0, slot: '晚', amt: Math.round((d.cost || 0) * CUR[this.state.cur].rate),
-        note: '', by: this.meWho(), together: true }
+        note: '', by: this.meWho(), together: true, logId: Date.now() }
     });
   }
 
@@ -2181,7 +2195,7 @@ class Component extends DCLogic {
     this.unsubCloud && this.unsubCloud();
     this.unsubAuth && this.unsubAuth();
     this.unsubRow && this.unsubRow();
-    clearTimeout(this._photoT);
+    clearTimeout(this._photoT); clearTimeout(this._cloudT);
     this.unsubPhotos && this.unsubPhotos();
   }
 
@@ -2198,20 +2212,7 @@ class Component extends DCLogic {
     if (window.AppStore) this.hydrate(window.AppStore.load());
     // photo-slot.js 是 helmet 里异步加载的，挂载时可能还没到，所以要等它出现再订阅
     this.hookPhotos();
-    if (window.CloudSync) {
-      const c = window.CloudSync.config();
-      this.setState({ cloudUrl: c.url, cloudKey: c.key, who: window.CloudSync.who() || this.state.who });
-      this.unsubCloud = window.CloudSync.subscribe(s => this.setState({ cloud: s }));
-      this.unsubAuth = window.CloudSync.onAuth(u => this.setState({ authUser: u, authReady: true }));
-      this.unsubRow = window.CloudSync.onRemoteRow(r => this.remoteRow(r));
-      window.CloudSync.init().then(u => {
-        this.setState({ authUser: u, authReady: true });
-        if (u) this.cloudSync();
-      });
-      // 本地先跑起来，云端在后台追平；连不上就安静退回本地
-      this.onOnline = () => this.cloudSync();
-      window.addEventListener('online', this.onOnline);
-    }
+    this.hookCloud();
     this.onTapSound = e => {
       const el = e.target && e.target.closest && e.target.closest('button,[role="button"],input,textarea');
       if (!el || el.disabled) return;
@@ -2261,6 +2262,29 @@ class Component extends DCLogic {
     window.PhotoStore.ready().then(() => { this.migrateOldPhotos(); this.forceUpdate(); });
     this.unsubPhotos = window.PhotoStore.subscribe(() => this.setState({ photoTick: Date.now() }));
     this.forceUpdate();
+  }
+
+  // supabase-sync.js 也是 helmet 异步加载的，没到就重试，否则状态栏永远停在「还没连云端」
+  hookCloud() {
+    if (this.unsubCloud) return;
+    if (!window.CloudSync) {
+      if (this._cloudTries == null) this._cloudTries = 0;
+      if (this._cloudTries++ > 80) return;
+      this._cloudT = setTimeout(() => this.hookCloud(), 120);
+      return;
+    }
+    const c = window.CloudSync.config();
+    this.setState({ cloudUrl: c.url, cloudKey: c.key, who: window.CloudSync.who() || this.state.who });
+    this.unsubCloud = window.CloudSync.subscribe(s => this.setState({ cloud: s }));
+    this.unsubAuth = window.CloudSync.onAuth(u => this.setState({ authUser: u, authReady: true }));
+    this.unsubRow = window.CloudSync.onRemoteRow(r => this.remoteRow(r));
+    window.CloudSync.init().then(u => {
+      this.setState({ authUser: u, authReady: true });
+      if (u) this.cloudSync();
+    });
+    // 本地先跑起来，云端在后台追平；连不上就安静退回本地
+    this.onOnline = () => this.cloudSync();
+    window.addEventListener('online', this.onOnline);
   }
 
   mapFrame() {
@@ -2437,9 +2461,15 @@ class Component extends DCLogic {
     });
   }
 
-  thumbBgOf(d) {
+  // 照片是 data URL，里面有 ";base64," —— 走 style 的洞会被截断，
+  // 所以缩略图直接生成一个 <img>
+  thumbElOf(d) {
     const u = this.thumbOf(d);
-    return u ? 'url("' + u + '")' : 'none';
+    if (!u) return null;
+    return React.createElement('img', {
+      src: u, alt: '',
+      style: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }
+    });
   }
 
   // 缩略图：你指定的封面 → 成品照 → 菜谱截图 → 打卡照片
@@ -2706,7 +2736,7 @@ class Component extends DCLogic {
         cn: d.cn,
         kind: d.how === 'cook' ? '菜谱' : d.how === 'order' ? '外卖菜' : '堂食菜',
         kindBg: '#f2c572', kindFg: '#7a4413',
-        thumbBg: this.thumbBgOf(d), noThumb: !this.thumbOf(d),
+        thumbEl: this.thumbElOf(d), noThumb: !this.thumbOf(d),
         meta: dishMetaOf(d),
         gapLabel: this.daysOf(d) + ' 天\n没吃',
         gapColor: this.daysOf(d) >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -2950,7 +2980,7 @@ class Component extends DCLogic {
       })),
       libList: kw ? searchRows : libSorted.map(d => ({
         cn: d.cn, kind: '菜谱', kindBg: '#f2c572', kindFg: '#7a4413',
-        thumbBg: this.thumbBgOf(d), noThumb: !this.thumbOf(d),
+        thumbEl: this.thumbElOf(d), noThumb: !this.thumbOf(d),
         meta: dishMeta(d),
         gapLabel: this.daysOf(d) + ' 天\n没吃',
         gapColor: this.daysOf(d) >= 30 ? '#c67139' : 'rgba(50,40,28,.4)',
@@ -3006,7 +3036,7 @@ class Component extends DCLogic {
       clTogetherBg: st.clog.together ? '#f2c572' : '#f6ecd8',
       clTogetherFg: st.clog.together ? '#7a4413' : 'rgba(50,40,28,.55)',
       clToggleTogether: () => this.patchCLog({ together: !st.clog.together }),
-      clShots: this.gallery('dishlog-' + detail.id + '-' + st.clog.dayOffset + '-p', [], 20),
+      clShots: this.gallery('dishlog-' + detail.id + '-v' + (st.clog.logId || 0) + '-p', [], 20),
       clNote: st.clog.note,
       clSetNote: e => this.patchCLog({ note: e.target.value }),
       clNoteChips: ['好吃，会再做', '这次咸了', '下次少放油', '两个人吃刚好', '还是外面的好吃'].map(n => ({
@@ -3097,7 +3127,8 @@ class Component extends DCLogic {
       restVisitList: rVisits.map(v => ({ d: v.d, mode: v.mode, amt: this.money(v.amt), note: v.note })),
       wishLabel: wishNow ? '标成已打卡' : '移回种草',
       toggleWish: () => this.go('checkin'),
-      openCheckin: () => this.go('checkin', { form: Object.assign({}, st.form, { mode: r.deliveryOnly ? '外卖' : '堂食', amt: Math.round(r.avg * CUR[st.cur].rate) }) }),
+      // 每次打卡给一个独立编号，照片各自分开，不会把上次的图带进新界面
+      openCheckin: () => this.go('checkin', { form: Object.assign({}, st.form, { mode: r.deliveryOnly ? '外卖' : '堂食', amt: Math.round(r.avg * CUR[st.cur].rate), logId: Date.now() }) }),
 
       formDate: this.formDateLabel(),
       dayMinus: () => this.patchForm({ dayOffset: st.form.dayOffset - 1 }),
@@ -3125,8 +3156,7 @@ class Component extends DCLogic {
       })(),
       waitMinus: () => this.patchForm({ wait: Math.max(5, (st.form.wait || this.etaOf(r) || 30) - 5) }),
       waitPlus: () => this.patchForm({ wait: (st.form.wait || this.etaOf(r) || 30) + 5 }),
-      formShots: this.gallery('checkin-' + r.id + '-' + st.form.dayOffset + '-p',
-        ['checkin-' + r.id + '-1', 'checkin-' + r.id + '-2'], 20),
+      formShots: this.gallery('checkin-' + r.id + '-v' + (st.form.logId || 0) + '-p', [], 20),
       formNote: st.form.note,
       setFormNote: e => this.patchForm({ note: e.target.value }),
       noteChips: NOTE_CHIPS.map(n => ({

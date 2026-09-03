@@ -24,13 +24,19 @@
   }));
 
   const cache = {};
+  let meta = {};
   const subs = new Set();
   let ready = tx('readonly', s => s.getAllKeys()).then(keys => {
     if (!keys || !keys.length) return;
     return tx('readonly', s => s.getAll()).then(vals => {
-      keys.forEach((k, i) => { cache[k] = vals[i]; });
+      keys.forEach((k, i) => {
+        if (k === '__meta') { try { meta = JSON.parse(vals[i]) || {}; } catch (e) { meta = {}; } return; }
+        cache[k] = vals[i];
+      });
     });
   }).catch(() => {});
+  const saveMeta = () => tx('readwrite', s => s.put(JSON.stringify(meta), '__meta')).catch(() => {});
+  const stampNow = id => { meta[id] = { t: Date.now() }; };
 
   const notify = () => subs.forEach(fn => fn());
 
@@ -38,8 +44,10 @@
     ready: () => ready,
     all: () => Object.assign({}, cache),
     get: id => cache[id] || null,
+    stampOf: id => (meta[id] && meta[id].t) || null,
     set(id, url) {
-      if (url) cache[id] = url; else delete cache[id];
+      if (url) { cache[id] = url; stampNow(id); saveMeta(); }
+      else { delete cache[id]; delete meta[id]; saveMeta(); }
       notify();
       return tx('readwrite', s => url ? s.put(url, id) : s.delete(id))
         .catch(() => {})
@@ -51,8 +59,9 @@
       let n = 0;
       urls.forEach(u => {
         while (cache[prefix + n]) n++;
-        cache[prefix + n] = u; added.push([prefix + n, u]); n++;
+        cache[prefix + n] = u; stampNow(prefix + n); added.push([prefix + n, u]); n++;
       });
+      saveMeta();
       notify();
       return tx('readwrite', s => { added.forEach(p => s.put(p[1], p[0])); })
         .catch(() => {})
@@ -151,8 +160,12 @@
     lb.querySelector('[data-p]').style.display = many ? 'block' : 'none';
     lb.querySelector('[data-n]').style.display = many ? 'block' : 'none';
     const c = lb.querySelector('[data-c]');
-    c.textContent = many ? (lb._i + 1) + ' / ' + lb._urls.length : '';
-    c.style.display = many ? 'block' : 'none';
+    const id = lb._ids && lb._ids[lb._i];
+    const t = id ? window.PhotoStore.stampOf(id) : null;
+    const when = t ? new Date(t).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const count = many ? (lb._i + 1) + ' / ' + lb._urls.length : '';
+    c.textContent = [when, count].filter(Boolean).join(' \u00b7 ');
+    c.style.display = c.textContent ? 'block' : 'none';
   }
   window.PhotoStore.view = lightbox;
 
