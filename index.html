@@ -1871,8 +1871,15 @@ class Component extends DCLogic {
     fests: [{ id: 'f-demo', name: '我们在一起', md: '03-14', y: 2023 }],
     festForm: { name: '', m: '', d: '', y: '' }, festMsg: '',
     clog: { dayOffset: 0, slot: '晚', amt: 0, note: '', by: '', together: true, logId: 0 },
-    covers: {}, gone: [], goneAt: {}
+    covers: {}, gone: [], goneAt: {}, reviveAt: {}
   };
+
+  // 刚在本机改过、还没推上去的行：这一轮拉下来的云端副本不许盖掉它们。
+  // （先拉后推是为了尊重对方的删除，但代价是本地新写的东西会被旧副本冲掉）
+  markDirty(keys) {
+    this.dirty = this.dirty || {};
+    (keys || []).forEach(k => { this.dirty[k] = Date.now(); });
+  }
 
   meWho() { return this.state.who || 'cai'; }
   otherWho() { return this.meWho() === 'cai' ? 'guo' : 'cai'; }
@@ -1895,11 +1902,9 @@ class Component extends DCLogic {
     out['visit:' + who] = { kind: 'visit', who: who, payload: st.visits };
     // 删除名单（两人共用，取并集）：名单里的 key 永远不推实体行，
     // 否则哪台设备手里还留着旧副本，一推就把对方删掉的东西写活了。
-    const buried = Object.assign({}, this.state.goneAt || {});
-    (st.gone || []).forEach(k => { if (!buried[k]) buried[k] = 1; });
+    const buried = this.bury({});
     Object.keys(buried).forEach(k => { delete out[k]; });
-    (st.gone || []).forEach(k => { delete out[k]; });
-    out['del:' + who] = { kind: 'del', who: who, payload: { del: buried } };
+    out['del:' + who] = { kind: 'del', who: who, payload: { del: buried, revive: this.state.reviveAt || {} } };
     // 照片清单：这台设备现在有哪些照片。清单里没有的就是被删了，删除靠它同步
     if (window.PhotoStore && window.PhotoStore.ids) {
       out['photos:' + who] = {
@@ -1925,13 +1930,27 @@ class Component extends DCLogic {
 
   // 删除墓碑：{ key: 删除时间 }。两人各存一份，同步时取并集 ——
   // 只靠云端行上的 deleted 标记不够：对方一推旧副本就把标记盖没了。
-  bury(inc) {
+  bury(inc, rv0) {
     const at = Object.assign({}, this.state.goneAt || {});
     (this.state.gone || []).forEach(k => { if (!at[k]) at[k] = 1; });
     Object.keys(inc || {}).forEach(k => { at[k] = Math.max(at[k] || 0, inc[k] || 1); });
+    // 复活比删除新 → 墓碑作废（同一天删完又记了新的，就是这种）
+    const rv = rv0 || this.state.reviveAt || {};
+    Object.keys(at).forEach(k => { if ((rv[k] || 0) >= at[k]) delete at[k]; });
     const out = {};
     Object.keys(at).sort((a, b) => (at[b] || 0) - (at[a] || 0)).slice(0, 800)
       .forEach(k => { out[k] = at[k]; });
+    return out;
+  }
+
+  // 又有内容了：除了销掉本地墓碑，还要记一条「复活时间」带给对方 ——
+  // 否则对方名单一同步过来，又把这一天埋回去了。
+  reviveKeys(keys, rv0) {
+    const rv = Object.assign({}, rv0 || this.state.reviveAt || {});
+    (keys || []).forEach(k => { rv[k] = Date.now(); });
+    const out = {};
+    Object.keys(rv).sort((a, b) => (rv[b] || 0) - (rv[a] || 0)).slice(0, 800)
+      .forEach(k => { out[k] = rv[k]; });
     return out;
   }
 
@@ -1964,15 +1983,21 @@ class Component extends DCLogic {
     // 先把墓碑合成一份：云端的 deleted 行 + 两人的删除名单，
     // 合完先落到本地，再用它挡掉本轮所有要装回来的行。
     const inc = {};
+    const rvinc = {};
     keys.forEach(k => { if (map[k] && map[k].deleted) inc[k] = Date.now(); });
     ['del:' + me, 'del:' + other].forEach(k => {
       const p = map[k] && map[k].payload;
       const d = (p && p.del) || {};
       Object.keys(d).forEach(x => { inc[x] = Math.max(inc[x] || 0, d[x] || 1); });
+      const r = (p && p.revive) || {};
+      Object.keys(r).forEach(x => { rvinc[x] = Math.max(rvinc[x] || 0, r[x] || 1); });
     });
-    const at = this.bury(inc);
+    const rv = Object.assign({}, this.state.reviveAt || {});
+    Object.keys(rvinc).forEach(k => { rv[k] = Math.max(rv[k] || 0, rvinc[k]); });
+    const at = this.bury(inc, rv);
     this.applyGone(at);
-    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted) && !at[x]);
+    const dirty = this.dirty || {};
+    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted) && !at[x] && !dirty[x]);
 
     if (full && kinds('dish').length) {
       DISHES.length = 0;
@@ -1998,7 +2023,11 @@ class Component extends DCLogic {
     [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
       const rows = kinds(pair[0]);
       if (!rows.length) return;
-      if (full) Object.keys(pair[1]).forEach(d => { delete pair[1][d]; });
+      // 全量对齐会先清空再装回；本机刚写、还没推上去的那几笔要留下
+      if (full) Object.keys(pair[1]).forEach(d => {
+        const keep = (pair[1][d] || []).filter(it => dirty[pair[0] + ':' + d + ':' + (it.by || 'cai')]);
+        if (keep.length) pair[1][d] = keep; else delete pair[1][d];
+      });
       rows.forEach(k => {
         const row = map[k], day = row.payload.day, w = row.who || 'cai';
         const items = (row.payload.items || []).map(it => Object.assign({}, it, { by: it.by || w }));
@@ -2011,7 +2040,7 @@ class Component extends DCLogic {
     const patch = {};
     if (map['visit:' + other]) patch.pvisits = map['visit:' + other].payload || {};
     if (full && !map['visit:' + other] && !map['visit:' + me]) patch.pvisits = {};
-    if (map['visit:' + me]) patch.visits = map['visit:' + me].payload || {};
+    if (map['visit:' + me] && !dirty['visit:' + me]) patch.visits = map['visit:' + me].payload || {};
     const pref = map['pref:' + me];
     if (pref && pref.payload) {
       const p = pref.payload;
@@ -2043,7 +2072,7 @@ class Component extends DCLogic {
       patch.wantGone = shared.wantGone;
     }
     if (Object.keys(patch).length) this.setState(patch);
-    this.setState({ goneAt: at, gone: Object.keys(at) });
+    this.setState({ goneAt: at, gone: Object.keys(at), reviveAt: rv });
     this.scrubJunk();
     this.forceUpdate();
   }
@@ -2336,7 +2365,7 @@ class Component extends DCLogic {
     return {
       dishes: DISHES, restaurants: RESTAURANTS, records: RECORDS, plans: PLANS,
       visits: st.visits, pvisits: st.pvisits, who: st.who, want: st.want, wantGone: st.wantGone, cur: st.cur,
-      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers, gone: st.gone, goneAt: st.goneAt
+      lowBand: st.lowBand, highBand: st.highBand, fests: st.fests, covers: st.covers, gone: st.gone, goneAt: st.goneAt, reviveAt: st.reviveAt
     };
   }
 
@@ -2355,7 +2384,8 @@ class Component extends DCLogic {
       fests: data.fests || this.state.fests,
       covers: data.covers || this.state.covers,
       gone: data.gone || this.state.gone,
-      goneAt: data.goneAt || (data.gone || []).reduce((o, k) => { o[k] = 1; return o; }, {})
+      goneAt: data.goneAt || (data.gone || []).reduce((o, k) => { o[k] = 1; return o; }, {}),
+      reviveAt: data.reviveAt || {}
     });
     this.applyGone(data.goneAt || {});
     this.scrubJunk();
@@ -2373,10 +2403,12 @@ class Component extends DCLogic {
 
   cloudSync() {
     if (!window.CloudSync || !window.CloudSync.configured()) return;
-    window.CloudSync.syncNow(() => this.rows(), remote => {
+    const p = window.CloudSync.syncNow(() => this.rows(), remote => {
       this.applyRows(remote, true);
       if (window.AppStore) window.AppStore.save(this.snapshot());
     });
+    // 推上去之后本地这几行就不再是「更新的那一份」，解除保护
+    if (p && p.then) p.then(() => { this.dirty = {}; }, () => {});
   }
 
   // 本地存完再推云端；只推变过的行，推失败不影响本地
@@ -2437,6 +2469,7 @@ class Component extends DCLogic {
     };
     const day = (RECORDS[key] || []).filter(it => !(it.cn === r.cn && (it.by || 'cai') === by));
     RECORDS[key] = day.concat([item]);
+    this.markDirty(['visit:' + this.meWho(), 'record:' + key + ':' + by]);
     // 这一天之前可能被删过，行还挂着删除标记；新记录要把标记销掉才推得上去
     this.touchRecDay(false, key);
     this.setState({
@@ -2485,6 +2518,7 @@ class Component extends DCLogic {
     };
     const day = (RECORDS[key] || []).filter(it => !(it.cn === d.cn && (it.by || 'cai') === by));
     RECORDS[key] = day.concat([item]);
+    this.markDirty(['record:' + key + ':' + by, 'dish:' + d.id]);
     this.touchRecDay(false, key);
     // 吃过的时间 / 几天没吃都从真实日期算，不再是写死的数字
     const dish = DISHES.filter(x => x.id === d.id)[0];
@@ -2990,20 +3024,22 @@ class Component extends DCLogic {
   touchRecDay(isPlan, day) {
     const kind = isPlan ? 'plan' : 'record';
     const items = (isPlan ? PLANS : RECORDS)[day] || [];
-    const gone = (this.state.gone || []).slice();
+    const dead = [], alive = [];
     ['cai', 'guo'].forEach(w => {
       const key = kind + ':' + day + ':' + w;
-      const has = items.some(it => (it.by || 'cai') === w);
-      const i = gone.indexOf(key);
-      if (!has) {
-        if (i < 0) gone.push(key);
-        if (window.CloudSync && window.CloudSync.markDeleted) window.CloudSync.markDeleted([key]);
-      } else if (i > -1) {
-        gone.splice(i, 1);
-        if (window.CloudSync && window.CloudSync.unmarkDeleted) window.CloudSync.unmarkDeleted([key]);
-      }
+      (items.some(it => (it.by || 'cai') === w) ? alive : dead).push(key);
     });
-    this.setState({ gone: gone });
+    const rv = this.reviveKeys(alive);
+    this.markDirty(alive.concat(dead));
+    const inc = {};
+    dead.forEach(k => { inc[k] = Date.now(); });
+    const at = this.bury(inc, rv);
+    this.setState({ goneAt: at, gone: Object.keys(at), reviveAt: rv });
+    if (window.CloudSync) {
+      const push = dead.filter(k => at[k]);
+      if (push.length && window.CloudSync.markDeleted) window.CloudSync.markDeleted(push);
+      if (alive.length && window.CloudSync.unmarkDeleted) window.CloudSync.unmarkDeleted(alive);
+    }
     setTimeout(() => this.cloudSync(), 400);
   }
 
