@@ -847,6 +847,22 @@ a{color:#8c491a}a:hover{color:#b2622d}
     <sc-if value="{{ backupMsg }}" hint-placeholder-val="{{ false }}">
       <span style="font:700 11.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:#8c491a">{{ backupMsg }}</span>
     </sc-if>
+    <div style="display:flex;flex-direction:column;gap:9px;padding-top:6px">
+      <span style="font:400 16px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">回滚点（自动）</span>
+      <span style="font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">本机每隔一段时间自动留一份「改动之前」的数据。万一同步把东西弄没了，直接退回去，照片不受影响。</span>
+      <sc-if value="{{ noRollback }}" hint-placeholder-val="{{ false }}">
+        <span style="padding:13px 15px;border-radius:22px;background:#f6ecd8;font:700 11.5px/1.5 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">还没有回滚点，用一阵就有了。</span>
+      </sc-if>
+      <sc-for list="{{ rollbackList }}" as="r" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:11px;padding:12px 15px;border-radius:22px;background:#f6ecd8">
+          <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+            <span style="font:800 12.5px/1.2 Nunito,'Noto Sans SC',sans-serif;color:#3a2617">{{ r.when }}</span>
+            <span style="font:700 11px/1.2 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ r.counts }}</span>
+          </span>
+          <button onClick="{{ r.onPick }}" style="min-height:40px;padding:0 15px;border:none;border-radius:999px;background:#fdf8ee;color:#8c491a;font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer;flex:none" style-hover="background:#eee0c4">退回这里</button>
+        </div>
+      </sc-for>
+    </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:11px">
     <span style="font:400 19px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">生日 · 纪念日</span>
@@ -1997,38 +2013,30 @@ class Component extends DCLogic {
     const at = this.bury(inc, rv);
     this.applyGone(at);
     const dirty = this.dirty || {};
-    const kinds = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted) && !at[x] && !dirty[x]);
+    // 全量对齐不再「清空重装」。清空重装是「东西一下全没了」这类事故的根源：
+    // 云端少一行、拉取少一页、行还没推上去，本地一整份就被抹掉。
+    // 现在只做 upsert，删除一律走墓碑（del 名单 / deleted 行），上面 applyGone 已经执行过了。
+    const live = k => keys.filter(x => x.indexOf(k + ':') === 0 && !(map[x] && map[x].deleted) && !at[x]);
+    // kinds = 当真能拿云端副本盖本地的行（去掉本机刚改、还没推上去的）
+    const kinds = k => live(k).filter(x => !dirty[x]);
 
-    if (full && kinds('dish').length) {
-      DISHES.length = 0;
-      kinds('dish').forEach(k => DISHES.push(map[k].payload));
-    } else {
-      kinds('dish').forEach(k => {
-        const d = map[k].payload, i = DISHES.findIndex(x => x.id === d.id);
-        if (i > -1) DISHES[i] = d; else DISHES.push(d);
-      });
-    }
-    if (full && kinds('rest').length) {
-      RESTAURANTS.length = 0;
-      kinds('rest').forEach(k => RESTAURANTS.push(map[k].payload));
-    } else {
-      kinds('rest').forEach(k => {
-        const r = map[k].payload, i = RESTAURANTS.findIndex(x => x.id === r.id);
-        if (i > -1) RESTAURANTS[i] = r; else RESTAURANTS.push(r);
-      });
-    }
+    kinds('dish').forEach(k => {
+      const d = map[k].payload;
+      if (!d || !d.id) return;
+      const i = DISHES.findIndex(x => x && x.id === d.id);
+      if (i > -1) DISHES[i] = d; else DISHES.push(d);
+    });
+    kinds('rest').forEach(k => {
+      const r = map[k].payload;
+      if (!r || !r.id) return;
+      const i = RESTAURANTS.findIndex(x => x && x.id === r.id);
+      if (i > -1) RESTAURANTS[i] = r; else RESTAURANTS.push(r);
+    });
     DISHES.forEach(fixAte);
     RESTAURANTS.forEach(r => { if (!r.geo && GEO[r.id]) r.geo = GEO[r.id]; });
 
     [['record', RECORDS], ['plan', PLANS]].forEach(pair => {
-      const rows = kinds(pair[0]);
-      if (!rows.length) return;
-      // 全量对齐会先清空再装回；本机刚写、还没推上去的那几笔要留下
-      if (full) Object.keys(pair[1]).forEach(d => {
-        const keep = (pair[1][d] || []).filter(it => dirty[pair[0] + ':' + d + ':' + (it.by || 'cai')]);
-        if (keep.length) pair[1][d] = keep; else delete pair[1][d];
-      });
-      rows.forEach(k => {
+      kinds(pair[0]).forEach(k => {
         const row = map[k], day = row.payload.day, w = row.who || 'cai';
         const items = (row.payload.items || []).map(it => Object.assign({}, it, { by: it.by || w }));
         const kept = (pair[1][day] || []).filter(it => (it.by || 'cai') !== w);
@@ -2038,9 +2046,11 @@ class Component extends DCLogic {
     });
 
     const patch = {};
-    if (map['visit:' + other]) patch.pvisits = map['visit:' + other].payload || {};
-    if (full && !map['visit:' + other] && !map['visit:' + me]) patch.pvisits = {};
-    if (map['visit:' + me] && !dirty['visit:' + me]) patch.visits = map['visit:' + me].payload || {};
+    if (map['visit:' + other]) patch.pvisits = Object.assign({}, this.state.pvisits || {}, map['visit:' + other].payload || {});
+    // 自己的打卡：云端那份按店合并进来，云端没提到的店保留本机的（整份替换会丢没推上去的打卡）
+    if (map['visit:' + me] && !dirty['visit:' + me]) {
+      patch.visits = Object.assign({}, this.state.visits || {}, map['visit:' + me].payload || {});
+    }
     const pref = map['pref:' + me];
     if (pref && pref.payload) {
       const p = pref.payload;
@@ -2407,15 +2417,20 @@ class Component extends DCLogic {
       this.applyRows(remote, true);
       if (window.AppStore) window.AppStore.save(this.snapshot());
     });
-    // 推上去之后本地这几行就不再是「更新的那一份」，解除保护
-    if (p && p.then) p.then(() => { this.dirty = {}; }, () => {});
+    // 推上去之后本地这几行就不再是「更新的那一份」，解除保护；
+    // 推失败（离线 / 被拦）就继续保护，不能让云端旧副本把本地新写的抹掉
+    if (p && p.then) p.then(ok => { if (ok !== false) this.dirty = {}; }, () => {});
   }
 
   // 本地存完再推云端；只推变过的行，推失败不影响本地
   cloudPushSoon() {
     if (!window.CloudSync || !window.CloudSync.configured() || !window.CloudSync.user()) return;
     clearTimeout(this.cloudTimer);
-    this.cloudTimer = setTimeout(() => window.CloudSync.pushQuiet(this.rows()), 3000);
+    this.cloudTimer = setTimeout(() => {
+      const p = window.CloudSync.pushQuiet(this.rows());
+      // 静默推送成功也算「云端已经有这份」，解除本地脏行保护
+      if (p && p.then) p.then(ok => { if (ok !== false) this.dirty = {}; }, () => {});
+    }, 3000);
   }
 
   connectCloud() {
@@ -2439,12 +2454,33 @@ class Component extends DCLogic {
     }
   }
 
+  // 退回某个自动回滚点：本地先回去，再把这一份整体推给云端（否则下次同步又被云端盖回来）
+  rollback(i) {
+    try {
+      const r = window.AppStore.rollbackTo(i);
+      this.hydrate(r.data);
+      const all = {};
+      Object.keys(this.rows()).forEach(k => { all[k] = Date.now(); });
+      this.dirty = all;
+      this.forceUpdate();
+      this.setState({ backupMsg: '已退回 ' + new Date(r.at).toLocaleString('zh-CN') + ' 那一份，正在推给云端' });
+      setTimeout(() => this.cloudSync(), 300);
+    } catch (e) {
+      this.setState({ backupMsg: '退不回去：' + (e.message || e) });
+    }
+  }
+
   async restoreFrom(file) {
     if (!file) return;
     try {
       const b = await window.AppStore.importFile(file);
       this.hydrate(b.data);
+      // 读回来的这一份整体算「本机更新的」，先推上去，别被云端旧副本盖掉
+      const all = {};
+      Object.keys(this.rows()).forEach(k => { all[k] = Date.now(); });
+      this.dirty = all;
       this.forceUpdate();
+      setTimeout(() => this.cloudSync(), 300);
       this.setState({ backupMsg: '恢复好了，这份备份存于 ' + new Date(b.savedAt).toLocaleString('zh-CN') });
       this.refreshUsage();
     } catch (e) {
@@ -3104,6 +3140,8 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
+    const rollbacks = st.screen === 'settings' && window.AppStore && window.AppStore.rollbacks
+      ? window.AppStore.rollbacks() : [];
     const flow = flowFor(st.answers);
 
     const sel = st.sel;
@@ -3749,6 +3787,12 @@ class Component extends DCLogic {
       restoreRef: el => { this.restoreEl = el; },
       onRestoreFile: e => { const f = e.target.files[0]; e.target.value = ''; this.restoreFrom(f); },
       backupMsg: st.backupMsg,
+      rollbackList: rollbacks.map(r => ({
+        when: new Date(r.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        counts: r.dishes + ' 道菜 · ' + r.rests + ' 家店 · ' + r.days + ' 天记录',
+        onPick: () => this.rollback(r.i)
+      })),
+      noRollback: rollbacks.length === 0,
       useData: st.usage ? st.usage.dataLabel : '…',
       usePhotos: st.usage ? st.usage.photoCount + ' 张 · ' + st.usage.photoLabel : '…',
       savedLabel: st.savedAt ? '已自动存于 ' + new Date(st.savedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '自动保存已开',

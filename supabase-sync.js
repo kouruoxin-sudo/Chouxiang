@@ -533,14 +533,14 @@
 
     // 开机同步：先拉后推；任何一步失败都退回本地模式，不打断使用
     async syncNow(rows, applyRemote) {
-      if (!this.configured()) return;
+      if (!this.configured()) return false;
       try {
         const sb = await getClient();
         // 有会话但模块里还没拿到 user 时（刷新后常见），先补一次
         if (!me && sb) {
           try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
         }
-        if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
+        if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return false; }
         // 先拉后推：先把对方的删除 / 改动落到本地，再推自己的。
         // 反过来会出事：本机手里还留着的旧副本会把对方刚删掉的行又写活。
         const remote = await this.pullRows();
@@ -548,9 +548,11 @@
         await new Promise(r => setTimeout(r, 400));
         await this.pushRows(rows());
         this.live();
+        return true;   // 推上去了 —— 调用方可以解除本地脏行保护
       } catch (e) {
         window.CloudSync.__quiet = false;
         emit(classify(e));
+        return false;
       }
     },
 
@@ -638,8 +640,8 @@
     },
 
     async pushQuiet(rows) {
-      if (!this.configured() || !me) return;
-      try { await this.pushRows(rows); } catch (e) { emit(classify(e)); }
+      if (!this.configured() || !me) return false;
+      try { await this.pushRows(rows); return true; } catch (e) { emit(classify(e)); return false; }
     },
 
     // 建表 / 白名单 / 照片桶的 SQL，用户复制到 Supabase SQL Editor 跑一次

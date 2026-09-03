@@ -2,6 +2,34 @@
 // 另外提供整包导出 / 导入，用来做手动备份。
 (function () {
   const KEY = 'chouxiang-data-v1';
+  const RING = 'chouxiang-rollback-v1';   // 本机自动回滚点（只存数据，照片在 IndexedDB 里不动）
+  const RING_KEEP = 4;
+  const RING_GAP = 20 * 60 * 1000;        // 两个回滚点至少隔 20 分钟
+
+  // 每次覆盖存档前，把「覆盖之前那一份」留成回滚点。
+  // 万一同步或改动把东西弄没了，可以直接退回几十分钟前的状态。
+  function keepRollback(prevRaw) {
+    if (!prevRaw) return;
+    let ring = [];
+    try { ring = JSON.parse(localStorage.getItem(RING) || '[]') || []; } catch (e) { ring = []; }
+    const now = Date.now();
+    if (ring.length && now - (ring[0].at || 0) < RING_GAP) return;
+    let d = null;
+    try { d = JSON.parse(prevRaw); } catch (e) { return; }
+    if (!d) return;
+    ring.unshift({
+      at: now, raw: prevRaw,
+      dishes: (d.dishes || []).length,
+      rests: (d.restaurants || []).length,
+      days: Object.keys(d.records || {}).length
+    });
+    while (ring.length > RING_KEEP) ring.pop();
+    // 配额吃紧就先丢最老的，丢到能写下为止
+    while (ring.length) {
+      try { localStorage.setItem(RING, JSON.stringify(ring)); return; }
+      catch (e) { ring.pop(); }
+    }
+  }
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
 
@@ -15,6 +43,7 @@
 
     save(snapshot) {
       try {
+        keepRollback(localStorage.getItem(KEY));
         localStorage.setItem(KEY, JSON.stringify(snapshot));
         return true;
       } catch (e) {
@@ -22,6 +51,26 @@
         console.warn('存档写入失败', e);
         return false;
       }
+    },
+
+    // 本机回滚点清单（新的在前）
+    rollbacks() {
+      try {
+        return (JSON.parse(localStorage.getItem(RING) || '[]') || [])
+          .map((r, i) => ({ i: i, at: r.at, dishes: r.dishes, rests: r.rests, days: r.days }));
+      } catch (e) { return []; }
+    },
+
+    // 退回某个回滚点：返回那一份数据交给 App 套用（照片不动）
+    rollbackTo(i) {
+      let ring = [];
+      try { ring = JSON.parse(localStorage.getItem(RING) || '[]') || []; } catch (e) { ring = []; }
+      const r = ring[i];
+      if (!r || !r.raw) throw new Error('这个回滚点已经不在了');
+      const data = JSON.parse(r.raw);
+      keepRollback(localStorage.getItem(KEY));
+      localStorage.setItem(KEY, r.raw);
+      return { at: r.at, data: data };
     },
 
     clear() {
