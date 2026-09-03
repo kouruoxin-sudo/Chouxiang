@@ -226,7 +226,13 @@
       this.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
       r.querySelector('.x').addEventListener('click', e => {
         e.stopPropagation();
-        window.PhotoStore.set(this.id, null);
+        const id = this.id;
+        // 先同步写入本地删除队列，再动 IndexedDB。这样用户删完立刻点
+        // 「同步」也不会赶在 tombstone 入队前把旧照片拉回来。
+        if (window.CloudSync && window.CloudSync.markPhotosDeleted) {
+          window.CloudSync.markPhotosDeleted([id]);
+        }
+        window.PhotoStore.set(id, null);
       });
       r.querySelector('.sw').addEventListener('click', e => { e.stopPropagation(); input.click(); });
       ['dragenter', 'dragover'].forEach(t => this.addEventListener(t, e => {
