@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <script src="./support.js"></script>
 </head>
 <body>
@@ -13,6 +13,28 @@
 <meta name="theme-color" content="#ecb75e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>
+// iOS 上键盘收起后整页会停在被顶上去的位置，且 body 是 overflow:hidden 所以滑不回来
+(function () {
+  var snap = function () {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+    if (document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+    if (document.body.scrollTop) document.body.scrollTop = 0;
+  };
+  var later = function () { snap(); setTimeout(snap, 60); setTimeout(snap, 260); setTimeout(snap, 700); };
+  window.addEventListener('focusout', later, true);
+  window.addEventListener('orientationchange', later);
+  window.addEventListener('pageshow', later);
+  window.addEventListener('resize', snap);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) later(); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', snap);
+  later();
+})();
+</script>
+<style>
+/* 输入框字号不到 16px 时 iOS 会自动放大页面，放大后就再也回不去了 */
+input, textarea, select { font-size: 16px !important; }
+</style>
 <link rel="manifest" href="./manifest.json">
 <script src="./photo-slot.js"></script>
 <script src="./app-store.js"></script>
@@ -351,10 +373,13 @@ a{color:#8c491a}a:hover{color:#b2622d}
         <span style="font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5);white-space:nowrap">累计打卡</span>
       </span>
     </div>
-    <button onClick="{{ askLocate }}" style="display:flex;align-items:center;gap:7px;text-align:left;border:none;border-radius:999px;background:transparent;padding:0 2px;cursor:pointer">
-      <span style="width:8px;height:8px;flex:none;border-radius:999px;background:{{ locDot }}"></span>
-      <span style="font:700 10.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ locLabel }}</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button onClick="{{ askLocate }}" style="display:flex;align-items:center;gap:7px;text-align:left;border:none;border-radius:999px;background:transparent;padding:0 2px;cursor:pointer">
+        <span style="width:8px;height:8px;flex:none;border-radius:999px;background:{{ locDot }}"></span>
+        <span style="font:700 10.5px/1.3 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.5)">{{ locLabel }}</span>
+      </button>
+      <button onClick="{{ goMyLoc }}" style="padding:5px 12px;border:1.5px solid rgba(50,40,28,.16);border-radius:999px;background:transparent;color:#8c491a;font:800 10px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#f6ecd8">手动指一下</button>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;margin:0 -24px;padding:0 24px">
       <sc-for list="{{ restFilters }}" as="f" hint-placeholder-count="5">
         <button onClick="{{ f.onPick }}" style="flex:none;min-height:32px;padding:0 14px;border:none;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font:800 12px/1 Nunito,'Noto Sans SC',sans-serif;white-space:nowrap;cursor:pointer">{{ f.label }}</button>
@@ -410,6 +435,14 @@ a{color:#8c491a}a:hover{color:#b2622d}
         <span style="padding:8px 14px;border-radius:999px;background:#eff3e4;font:800 11.5px/1 Nunito,'Noto Sans SC',sans-serif;color:#56633f">{{ c }}</span>
       </sc-for>
     </div>
+    <sc-if value="{{ restHasGeo }}" hint-placeholder-val="{{ false }}">
+      <a href="{{ restNavUrl }}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:9px;min-height:50px;border-radius:999px;background:#8fa073;color:#fdf8ee;font:400 18px/1 'ZCOOL KuaiLe',sans-serif;text-decoration:none" style-hover="background:#7d8e63">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.5 3.6 3.8 9.9c-.9.3-.9 1.6 0 1.9l6.4 2.2c.3.1.5.3.6.6l2.2 6.4c.3.9 1.6.9 1.9 0l6.3-16.7c.3-.8-.5-1.5-1.3-1.2Z"/>
+        </svg>
+        用 Google 地图带我去
+      </a>
+    </sc-if>
     <div style="display:flex;flex-direction:column;gap:10px">
       <span style="font:400 18px/1 'ZCOOL KuaiLe',sans-serif;color:#8fa073">这家常点的</span>
       <sc-for list="{{ restDishes }}" as="d" hint-placeholder-count="2">
@@ -551,10 +584,29 @@ a{color:#8c491a}a:hover{color:#b2622d}
   <div style="padding:var(--cx-top) 24px 14px;display:flex;align-items:center;gap:14px;flex:none">
     <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
     <h2 style="margin:0;font:400 30px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">打卡地图</h2>
+    <span style="flex:1"></span>
+    <sc-if value="{{ hasHere }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ fitMe }}" style="flex:none;padding:9px 14px;border:none;border-radius:999px;background:#f6ecd8;color:#8c491a;font:800 11px/1 Nunito,'Noto Sans SC',sans-serif;cursor:pointer" style-hover="background:#f2c572">回到我这儿</button>
+    </sc-if>
   </div>
   <div style="flex:1;min-height:0;padding:0 16px 20px">
     <div style="width:100%;height:100%;border-radius:30px;overflow:hidden;background:#fdf8ee;border:1px solid rgba(50,40,28,.1)">
-      <iframe src="./world-map.html" title="打卡地图" data-pins="{{ mapPins }}" onLoad="{{ pushPins }}" style="width:100%;height:100%;border:0;display:block"></iframe>
+      <iframe src="./world-map.html" title="打卡地图" data-pins="{{ mapPins }}" data-me="{{ mapMe }}" onLoad="{{ pushPins }}" style="width:100%;height:100%;border:0;display:block"></iframe>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ atMyLoc }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;animation:ap-fade .3s ease both">
+  <div style="padding:var(--cx-top) 24px 12px;display:flex;align-items:center;gap:14px;flex:none">
+    <button onClick="{{ goRest }}" aria-label="返回" style="width:44px;height:44px;flex:none;border:none;border-radius:999px;background:#f6ecd8;font:800 18px/1 Nunito;color:#8c491a;cursor:pointer" style-hover="background:#f2c572">←</button>
+    <h2 style="margin:0;font:400 27px/1 'ZCOOL KuaiLe',sans-serif;color:#3a2617">我在哪儿</h2>
+  </div>
+  <span style="flex:none;padding:0 24px 10px;font:700 11.5px/1.6 Nunito,'Noto Sans SC',sans-serif;color:rgba(50,40,28,.55)">搜个地名或者直接点地图，选好就按这个点算到各家店的路程。手机定位不给用的时候用这个。</span>
+  <div style="flex:1;min-height:0;padding:0 16px 20px">
+    <div style="width:100%;height:100%;border-radius:26px;overflow:hidden;border:1px solid rgba(50,40,28,.1)">
+      <x-import component-from-global-scope="map-picker" from="./map-picker.js" lat="{{ myLat }}" lon="{{ myLon }}" hint-size="100%,100%"></x-import>
     </div>
   </div>
 </div>
@@ -1857,8 +1909,23 @@ class Component extends DCLogic {
       this.blip(h >= 56);
     };
     document.addEventListener('pointerdown', this.onTapSound, true);
-    this.onPlace = e => this.patchRForm({ lat: e.detail.lat, lon: e.detail.lon, city: e.detail.city || this.state.rform.city });
+    this.onPlace = e => {
+      if (this.state.screen === 'myloc') {
+        this.setState({ here: [e.detail.lat, e.detail.lon], locState: 'manual' });
+        try { localStorage.setItem('cx-here', JSON.stringify([e.detail.lat, e.detail.lon])); } catch (err) {}
+        this.recalcTravel();
+        return;
+      }
+      this.patchRForm({ lat: e.detail.lat, lon: e.detail.lon, city: e.detail.city || this.state.rform.city });
+    };
     window.addEventListener('place-pick', this.onPlace);
+    // 上次手动指过位置就先用它，再让 GPS 有机会覆盖
+    try {
+      const saved = JSON.parse(localStorage.getItem('cx-here'));
+      if (Array.isArray(saved) && saved.length === 2) {
+        this.setState({ here: saved, locState: 'manual' }, () => this.recalcTravel());
+      }
+    } catch (err) {}
     this.locate();
   }
 
@@ -2250,7 +2317,7 @@ class Component extends DCLogic {
       atThinking: at('thinking'), atResult: at('result'),
       atLibrary: at('library'), atDetail: at('detail'),
       atRest: at('rest'), atRestDetail: at('restDetail'),
-      atCheckin: at('checkin'), atMap: at('map'),
+      atCheckin: at('checkin'), atMap: at('map'), atMyLoc: at('myloc'),
       atSettings: at('settings'),
       atRestForm: at('restForm'), atDishForm: at('dishForm'),
 
@@ -2258,7 +2325,8 @@ class Component extends DCLogic {
         const vs = this.allVisits(r);
         return { cn: r.cn, sub: r.city, lat: r.geo[0], lon: r.geo[1], visits: vs.length, wish: r.wish && vs.length === 0 };
       })),
-      locLabel: st.locState === 'on' ? '已按你的定位算路程'
+      locLabel: st.locState === 'manual' ? '按你手动指的位置算路程'
+        : st.locState === 'on' ? '已按你的定位算路程'
         : st.locState === 'asking' ? '正在找你在哪儿…'
         : st.locState === 'denied' ? '定位被拒了 · 去浏览器里允许后再点'
         : st.locState === 'failed' ? '没搜到信号 · 点一下再试'
@@ -2266,15 +2334,28 @@ class Component extends DCLogic {
         : st.locState === 'off' ? '这个浏览器不支持定位'
         : '点一下，用你的定位算路程',
       locOn: st.locState === 'on',
-      locDot: st.locState === 'on' ? '#8fa073' : st.locState === 'asking' ? '#ecb75e' : 'rgba(50,40,28,.22)',
+      locDot: st.locState === 'on' || st.locState === 'manual' ? '#8fa073' : st.locState === 'asking' ? '#ecb75e' : 'rgba(50,40,28,.22)',
       askLocate: () => this.locate(),
+      goMyLoc: () => this.setState({ screen: 'myloc' }),
+      myLat: st.here ? st.here[0] : 53.4808,
+      myLon: st.here ? st.here[1] : -2.2426,
       curName: CUR[st.cur].code,
       todayLabel: (TODAY.d < 10 ? '0' : '') + TODAY.d + '.' + (TODAY.m < 10 ? '0' : '') + TODAY.m,
       greeting: (h => h < 5 ? '还没睡呀 · LATE' : h < 11 ? '早上好 · MORNING' : h < 14 ? '中午好 · NOON'
         : h < 18 ? '下午好 · AFTERNOON' : '晚上好 · EVENING')(new Date().getHours()),
+      hasHere: !!st.here,
+      mapMe: st.here ? JSON.stringify(st.here) : '',
+      fitMe: () => {
+        const f = document.querySelector('iframe[title="打卡地图"]');
+        if (f && st.here) f.contentWindow.postMessage({ type: 'fit-me', lat: st.here[0], lon: st.here[1] }, '*');
+      },
       pushPins: e => {
         const f = e.target;
         try { f.contentWindow.postMessage({ type: 'pins', pins: JSON.parse(f.dataset.pins) }, '*'); } catch (err) {}
+        try {
+          const me = f.dataset.me && JSON.parse(f.dataset.me);
+          if (me) f.contentWindow.postMessage({ type: 'me', lat: me[0], lon: me[1] }, '*');
+        } catch (err) {}
       },
 
       rf: st.rform,
@@ -2443,6 +2524,16 @@ class Component extends DCLogic {
       }),
 
       rest: r,
+      restHasGeo: !!(r && !r.deliveryOnly),
+      // 有经纬度就按坐标导航（最准），没有就拿店名去搜；有定位时把起点也带上
+      restNavUrl: (() => {
+        if (!r) return '';
+        const dest = r.geo ? r.geo[0] + ',' + r.geo[1]
+          : encodeURIComponent([r.cn, r.en, r.city].filter(Boolean).join(' '));
+        let u = 'https://www.google.com/maps/dir/?api=1&travelmode=transit&destination=' + dest;
+        if (st.here) u += '&origin=' + st.here[0] + ',' + st.here[1];
+        return u;
+      })(),
       restLine: r.cuisine + ' · ' + r.city + ' · ' + this.travelLine(r),
       restDishes: this.dishesOf(r.id).map(d => ({
         cn: d.cn, meta: dishMeta(d),

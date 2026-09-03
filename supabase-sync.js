@@ -305,12 +305,23 @@
         }
         return { ok: false, why: '读白名单被拦住了：' + wl.error.message, uid: uid };
       }
-      const mine = (wl.data || []).some(r => String(r.uid) === String(uid));
+      const rows = wl.data || [];
+      const mine = rows.some(r => String(r.uid) === String(uid));
+      if (!mine && rows.length === 0) {
+        // 表里其实有数据，只是 allowed_users 开了 RLS 又没给 select 策略，客户端一行都读不到
+        return {
+          ok: false, uid: uid,
+          why: '白名单表读不出来 —— allowed_users 开了行级安全，但没给「可以读」的策略，所以连你自己那一行也看不见（entries 的策略也因此全部失效）。跑下面这段就好：',
+          sql: 'drop policy if exists "read whitelist" on allowed_users;\n'
+             + 'create policy "read whitelist" on allowed_users\n'
+             + '  for select to authenticated using (true);'
+        };
+      }
       if (!mine) {
         return {
           ok: false, uid: uid,
-          why: '你的账号不在白名单里，所以云端不给读写。回 Supabase 的 SQL Editor 跑下面这一行就好：',
-          sql: "insert into allowed_users values ('" + uid + "','" + (localStorage.getItem(WHO_KEY) === 'guo' ? '果果' : '菜菜') + "');"
+          why: '白名单里有 ' + rows.length + ' 行，但没有你这个 UID。跑下面这一行补上（已经存在会报错，那就说明填的是别的 UID）：',
+          sql: "insert into allowed_users values ('" + uid + "','" + (localStorage.getItem(WHO_KEY) === 'guo' ? '果果' : '菜菜') + "')\n  on conflict (uid) do nothing;"
         };
       }
       // 读
@@ -348,6 +359,8 @@
       '',
       'alter table entries enable row level security;',
       'alter table allowed_users enable row level security;',
+      'drop policy if exists "read whitelist" on allowed_users;',
+      'create policy "read whitelist" on allowed_users for select to authenticated using (true);',
       'drop policy if exists "read all" on entries;',
       'drop policy if exists "write own" on entries;',
       'drop policy if exists "update own" on entries;',
