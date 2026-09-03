@@ -248,7 +248,15 @@
       if (!sb || !me) return;
       const m = meta();
       const up = [];
+      // app 递上来的删除名单（两人共用）：名单里的 key 一律不往回写活
+      const named = {};
       Object.keys(rows).forEach(k => {
+        if (k.indexOf('del:') !== 0) return;
+        const d = (rows[k].payload || {}).del || {};
+        Object.keys(d).forEach(x => { named[x] = 1; });
+      });
+      Object.keys(rows).forEach(k => {
+        if (named[k]) return;
         const h = hash(JSON.stringify(rows[k].payload));
         if (m.hashes[k] === h) return;
         up.push({
@@ -261,7 +269,9 @@
       // ⚠ 只推「明确删除」（markDeleted 记下的），绝不靠「本机没有」来推断删除
       // —— m.hashes 记着历史上见过的所有 key，推断会把还活着的数据一起抹掉。
       const goneMap = goneOf(m);
-      const gone = Object.keys(goneMap).filter(k => !rows[k]);
+      const gone = Object.keys(goneMap).filter(k => !rows[k])
+        .concat(Object.keys(named).filter(k => m.hashes[k] !== '__deleted'))
+        .filter((k, i, a) => a.indexOf(k) === i);
       gone.forEach(k => {
         up.push({ key: k, kind: k.split(':')[0], who: this.who(), owner: me.id, payload: {}, deleted: true, updated_at: new Date().toISOString() });
         m.hashes[k] = '__deleted';
@@ -348,9 +358,12 @@
         payload: {}, deleted: true, updated_at: new Date().toISOString()
       }));
       const { error } = await sb.from(TABLE).upsert(up, { onConflict: 'key' });
-      if (error) { emit(classify(error)); return; }
+      // 写不上去也要把删除记在本地名单里 —— 下一次 push 会接着重试，
+      // 否则这条删除就永远丢了，对方那台也永远看不到。
       const gm = goneOf(m);
       keys.forEach(k => { m.hashes[k] = '__deleted'; gm[k] = Date.now(); });
+      writeJSON(META_KEY, m);
+      if (error) { emit(classify(error)); return; }
       // 顺手把照片从桶里删掉，别让对方再拉一遍
       if (photoIds && photoIds.length) {
         try { await sb.storage.from(BUCKET).remove(photoIds.map(id => id + '.webp')); } catch (e) {}
@@ -528,10 +541,12 @@
           try { const { data } = await sb.auth.getUser(); me = data && data.user; } catch (e) {}
         }
         if (!me) { emit({ status: 'connecting', message: '地址已填好 · 还差登录（下面输邮箱密码）' }); return; }
-        // 先推：把本地的删除/改动落到云端，再拉才不会把刚删的又拉回来
-        await this.pushRows(rows());
+        // 先拉后推：先把对方的删除 / 改动落到本地，再推自己的。
+        // 反过来会出事：本机手里还留着的旧副本会把对方刚删掉的行又写活。
         const remote = await this.pullRows();
         if (remote && applyRemote) applyRemote(remote);
+        await new Promise(r => setTimeout(r, 400));
+        await this.pushRows(rows());
         this.live();
       } catch (e) {
         window.CloudSync.__quiet = false;
