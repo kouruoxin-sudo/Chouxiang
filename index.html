@@ -3432,6 +3432,11 @@ class Component extends DCLogic {
     allV.forEach(v => { favCount[v.rest.id] = (favCount[v.rest.id] || 0) + 1; });
     const favId = Object.keys(favCount).sort((a, b) => favCount[b] - favCount[a])[0];
     const favRest = favId ? this.restaurant(favId) : null;
+    // 记录页顶部的总花费 = 餐厅打卡 + 自己做饭（每道菜的花费 × 吃过几次）
+    const cookSpend = DISHES.filter(d => d.how === 'cook').reduce((s, d) => {
+      const times = (parseInt(d.times0, 10) || 0) + ((d.ateKeys || []).length);
+      return s + (d.cost || 0) * (times || 0);
+    }, 0);
 
     return {
       phoneW: this.state.isPhone ? '100%' : 402,
@@ -3456,7 +3461,7 @@ class Component extends DCLogic {
       toasts: st.toasts,
 
       usTogether: togetherRecs,
-      usSpend: this.money(spendAll),
+      usSpend: this.money(spendAll + cookSpend),
       usEach: this.money(spendAll / 2),
       usMine: myName + ' 记了 ' + this.money(mySpend),
       usFav: favRest ? favRest.cn + ' · ' + favCount[favId] + ' 次' : '还没有常去的',
