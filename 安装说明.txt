@@ -1,0 +1,26 @@
+臭翔今天吃什么｜手机端照片加载优化
+
+本压缩包包含需要上传覆盖的4个完整文件：
+index.html
+photo-slot.js
+supabase-sync.js
+app-store.js
+
+更新要点：
+- 启动时只读取 IndexedDB 照片编号，不再一次性读取全部图片内容。
+- 首页、菜谱、餐厅照片依然自动出现，缩略图按需生成并限制缓存。
+- 点击照片可以正常查看高清大图；同一组照片可左右切换，逐张读取。
+- 备份仍会包含全部照片，云同步仍会读取及传输原图（不重新压缩旧照片）。
+- 保留之前的 Magic Link 与密码重置修复。
+- 不修改 Supabase URL/Key 设置和现有数据库；无需清空浏览器数据。
+
+上传步骤：
+1. 在 iPhone/iPad 文件 App 里点 ZIP 解压。
+2. 打开 https://github.com/kouruoxin-sudo/Chouxiang
+3. Add file → Upload files。
+4. 选择解压的四个 .js/.html 文件（不要上传本说明），直接上传到仓库根目录。
+5. 确认是覆盖同名文件，不要放子文件夹；点击 Commit changes。
+6. 等 GitHub Pages 更新，然后在原来出错的 Chrome 普通模式打开小程序测试。
+
+注意：这份补丁通过了 JavaScript 语法检查，但尚未在你的 iPhone 上做运行验证。
+若遇到错误，不要清除网站数据，不要卸载浏览器；先截图反馈。

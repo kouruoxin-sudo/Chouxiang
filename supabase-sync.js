@@ -449,7 +449,7 @@
         if (pdead[id]) continue;
         // 同一个 id 被对方换成了新照片 → 桶里的时间戳会变，那就重新下一遍
         const stamp = f.updated_at || (f.metadata && f.metadata.lastModified) || '';
-        if (window.PhotoStore.get(id) && m1.pfiles[id] === stamp) continue;
+        if (window.PhotoStore.has(id) && m1.pfiles[id] === stamp) continue;
         const { data: blob } = await sb.storage.from(BUCKET).download(f.name + '?t=' + encodeURIComponent(stamp));
         if (blob) {
           await window.PhotoStore.set(id, await blobToDataUrl(blob));
@@ -484,9 +484,11 @@
           const st = window.PhotoStore.stampOf ? (window.PhotoStore.stampOf(id) || 0) : 0;
           if (st <= dead) continue;   // 确实是被删的，不传
         }
-        const stamp = local[id].length;
+        const url = await window.PhotoStore.getAsync(id);
+        if (!url) continue;
+        const stamp = url.length;
         if (m.photos[id] === stamp) continue;
-        const blob = await dataUrlToBlob(local[id]);
+        const blob = await dataUrlToBlob(url);
         const { error } = await sb.storage.from(BUCKET).upload(id + '.webp', blob, { upsert: true, contentType: 'image/webp' });
         if (error) { state.photoErr = '传照片失败：' + error.message; throw error; }
         state.photoErr = '';

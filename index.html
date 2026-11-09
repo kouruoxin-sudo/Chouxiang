@@ -2949,7 +2949,7 @@ class Component extends DCLogic {
     });
   }
 
-  saveRest() {
+  async saveRest() {
     const f = this.state.rform;
     if (!f.cn.trim()) return;
     const avg = parseFloat(f.avg) || 0;
@@ -2966,7 +2966,7 @@ class Component extends DCLogic {
     } else {
       id = 'r' + Date.now();
       RESTAURANTS.push(Object.assign({ id: id, wish: true, visits: [] }, patch));
-      this.movePhotos('rest-new', 'rest-' + id);
+      await this.movePhotos('rest-new', 'rest-' + id);
     }
     this.recalcTravel();
     this.setState({ screen: 'restDetail', restId: id, editingRest: null, confirmDel: false });
@@ -3015,19 +3015,16 @@ class Component extends DCLogic {
   }
 
   // 早期版本把新建时的照片存在 dish-photo-* / rest-photo-* 名下，搬到现在的命名上
-  migrateOldPhotos() {
+  async migrateOldPhotos() {
     if (!window.PhotoStore) return;
     const all = window.PhotoStore.all();
-    Object.keys(all).forEach(k => {
+    for (const k of Object.keys(all)) {
       let nk = null;
       if (k.indexOf('dish-photo-') === 0) nk = 'dish-' + k.slice(11);
       else if (k.indexOf('dish-recipe-') === 0) nk = 'dish-' + k.slice(12) + '-p0';
       else if (k.indexOf('rest-photo-') === 0) nk = 'rest-' + k.slice(11) + '-hero';
-      if (nk && !all[nk]) {
-        window.PhotoStore.set(nk, all[k]);
-        window.PhotoStore.set(k, null);
-      }
-    });
+      if (nk && !window.PhotoStore.has(nk)) await window.PhotoStore.move(k, nk);
+    }
   }
 
   // 照片是 data URL，里面有 ";base64," —— 走 style 的洞会被截断，
@@ -3050,7 +3047,7 @@ class Component extends DCLogic {
   // 全部按「这道菜的 id」自动匹配，不用你改文件名
   thumbOf(d) {
     const id = this.thumbIdOf(d);
-    return id ? window.PhotoStore.get(id) : '';
+    return id ? window.PhotoStore.thumb(id, 240) : '';
   }
 
   // 选哪张照片当这道菜的缩略图（只返回照片 id，不碰图片本身）
@@ -3114,16 +3111,15 @@ class Component extends DCLogic {
   }
 
   // 新建时照片先存在 …-new 名下，存好后搬到真正的 id 上，不然照片会「不见」
-  movePhotos(fromPre, toPre) {
+  async movePhotos(fromPre, toPre) {
     if (!window.PhotoStore) return;
     const all = window.PhotoStore.all();
-    Object.keys(all).forEach(k => {
+    for (const k of Object.keys(all)) {
       if (k === fromPre || k.indexOf(fromPre + '-') === 0 || k.indexOf(fromPre + '-p') === 0) {
         const nk = toPre + k.slice(fromPre.length);
-        window.PhotoStore.set(nk, all[k]);
-        window.PhotoStore.set(k, null);
+        await window.PhotoStore.move(k, nk);
       }
-    });
+    }
   }
 
   openDishForm(id) {
@@ -3170,7 +3166,7 @@ class Component extends DCLogic {
     this.patchDForm({ ateKeys: (this.state.dform.ateKeys || []).filter(x => x !== k) });
   }
 
-  saveDish() {
+  async saveDish() {
     const f = this.state.dform;
     if (!f.cn.trim()) return;
     const mins = parseInt(f.mins, 10) || 30;
@@ -3195,7 +3191,7 @@ class Component extends DCLogic {
     } else {
       id = 'd' + Date.now();
       DISHES.push(fixAte(Object.assign({ id: id, days: 0, score: 0, tags: [], why: ['刚加进菜库，还没试过'], dates: [] }, patch)));
-      this.movePhotos('dish-new', 'dish-' + id);
+      await this.movePhotos('dish-new', 'dish-' + id);
     }
     this.setState({ screen: 'detail', detailId: id, editingDish: null, confirmDel: false });
   }

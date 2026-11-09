@@ -116,7 +116,7 @@
 
     // 备份文件 = 数据 + 全部照片，一个 .json 收着就行
     async exportFile(snapshot) {
-      const photos = window.PhotoStore ? (await window.PhotoStore.ready(), window.PhotoStore.all()) : {};
+      const photos = window.PhotoStore ? await window.PhotoStore.allAsync() : {};
       const bundle = { app: '臭翔今天吃什么', version: 1, savedAt: new Date().toISOString(), data: snapshot, photos: photos };
       const blob = new Blob([JSON.stringify(bundle)], { type: 'application/json' });
       const d = new Date();
@@ -153,9 +153,9 @@
       let photoBytes = 0, photoCount = 0;
       if (window.PhotoStore) {
         await window.PhotoStore.ready();
-        const all = window.PhotoStore.all();
-        photoCount = Object.keys(all).length;
-        Object.keys(all).forEach(k => { photoBytes += all[k].length; });
+        const stats = await window.PhotoStore.sizes();
+        photoCount = stats.count;
+        photoBytes = stats.chars;
       }
       const mb = n => (n / 1048576).toFixed(n < 1048576 ? 2 : 1) + ' MB';
       return { dataLabel: mb(raw.length), photoLabel: mb(photoBytes), photoCount: photoCount };

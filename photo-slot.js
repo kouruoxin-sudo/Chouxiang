@@ -23,33 +23,60 @@
     t.onerror = () => rej(t.error);
   }));
 
-  const cache = {};
+  // 仅索引照片 ID；原始 data URL 不在启动时整批读入 RAM。
+  const keys = new Set();
+  const originals = new Map();
+  const MAX_ORIGINALS = 2;
+  const pendingOriginals = new Map();
   let meta = {};
   const subs = new Set();
-  let ready = tx('readonly', s => s.getAllKeys()).then(keys => {
-    if (!keys || !keys.length) return;
-    return tx('readonly', s => s.getAll()).then(vals => {
-      keys.forEach((k, i) => {
-        if (k === '__meta') { try { meta = JSON.parse(vals[i]) || {}; } catch (e) { meta = {}; } return; }
-        cache[k] = vals[i];
-      });
-    });
-  }).catch(() => {});
-  const saveMeta = () => tx('readwrite', s => s.put(JSON.stringify(meta), '__meta')).catch(() => {});
-  const stampNow = id => { meta[id] = { t: Date.now() }; };
-
   const notify = () => subs.forEach(fn => fn());
+  let ready = db().then(d => new Promise((resolve, reject) => {
+    const t = d.transaction(STORE, 'readonly');
+    const store = t.objectStore(STORE);
+    const req = store.getAllKeys();
+    req.onsuccess = () => (req.result || []).forEach(k => { if (k !== '__meta') keys.add(k); });
+    const mr = store.get('__meta');
+    mr.onsuccess = () => { try { meta = JSON.parse(mr.result || '{}') || {}; } catch (e) { meta = {}; } };
+    t.oncomplete = resolve;
+    t.onerror = () => reject(t.error);
+  })).catch(e => { console.warn('照片索引加载失败', e); });
+  const saveMeta = () => tx('readwrite', st => st.put(JSON.stringify(meta), '__meta')).catch(() => {});
+  const stampNow = id => { meta[id] = { t: Date.now() }; };
+  // LRU 上限：最多保存 2 张原始图片，避免 iOS 解码时叠加数百 MB。
+  function remember(id, url) {
+    if (!url) return url;
+    originals.delete(id); originals.set(id, url);
+    while (originals.size > MAX_ORIGINALS) originals.delete(originals.keys().next().value);
+    return url;
+  }
+  async function getAsync(id) {
+    if (!id || !keys.has(id)) return null;
+    if (originals.has(id)) return remember(id, originals.get(id));
+    if (pendingOriginals.has(id)) return pendingOriginals.get(id);
+    const promise = tx('readonly', st => st.get(id)).then(value => {
+      if (value && keys.has(id)) remember(id, value);
+      return keys.has(id) ? (value || null) : null;
+    }).finally(() => pendingOriginals.delete(id));
+    pendingOriginals.set(id, promise);
+    return promise;
+  }
 
-  // ── 缩略图 ───────────────────────────────────────────
-  // 原图（可能好几 MB）只负责保存、同步、在大图查看器里看。
-  // 格子和列表一律用小缩略图，而且一次只解一张原图 ——
-  // 手机一口气解几十张大图会把页面内存撑爆，iOS 直接杀掉页面。
-  const thumbs = {};          // 'id|px' -> { len, src }
-  const thumbPending = {};    // 'id|px|len' -> true
+  // 缩略图小图按需生成，限制数量；不在启动时扫描/解码所有原图。
+  const thumbs = new Map();
+  const MAX_THUMBS = 24;
+  const thumbPending = {};
+  const failedThumbs = new Set();
   let thumbQ = Promise.resolve();
   const bucketOf = px => px <= 240 ? 240 : px <= 480 ? 480 : px <= 800 ? 800 : 1200;
-  const dropThumbs = id => { [240, 480, 800, 1200].forEach(b => { delete thumbs[id + '|' + b]; }); };
-
+  function dropThumbs(id) {
+    for (const key of thumbs.keys()) if (key.indexOf(id + '|') === 0) thumbs.delete(key);
+    for (const key of failedThumbs) if (key.indexOf(id + '|') === 0) failedThumbs.delete(key);
+  }
+  function keepThumb(key, value) {
+    thumbs.delete(key); thumbs.set(key, value);
+    while (thumbs.size > MAX_THUMBS) thumbs.delete(thumbs.keys().next().value);
+  }
   function makeThumb(url, px) {
     return new Promise(res => {
       const im = new Image();
@@ -63,7 +90,7 @@
           const g = c.getContext('2d');
           g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
           g.drawImage(im, 0, 0, c.width, c.height);
-          const out = c.toDataURL('image/jpeg', 0.82);
+          const out = c.toDataURL('image/jpeg', 0.78);
           c.width = c.height = 0;
           done(out);
         } catch (e) { done(''); }
@@ -72,70 +99,94 @@
       im.src = url;
     });
   }
-
-  // 同步取：有现成的缩略图就直接返回；没有就排队生成（一次一张），
-  // 生成完 notify 一下让页面重画。生成中返回空字符串。
   function thumbOf(id, px) {
-    const url = cache[id];
-    if (!url) return '';
-    const b = bucketOf(px || 480);
-    const key = id + '|' + b;
-    const t = thumbs[key];
-    if (t && t.len === url.length) return t.src;
-    const pk = key + '|' + url.length;
-    if (!thumbPending[pk]) {
-      thumbPending[pk] = true;
-      thumbQ = thumbQ
-        .then(() => new Promise(r => setTimeout(r, 0)))   // 让出主线程，别卡住点击
-        .then(async () => {
-          const cur = cache[id];
-          if (cur && cur.length === url.length) {
-            const src = await makeThumb(cur, b);
-            if (cache[id] && cache[id].length === url.length) thumbs[key] = { len: url.length, src: src || cur };
-          }
-        })
-        .catch(() => {})
-        .then(() => { delete thumbPending[pk]; notify(); });
+    if (!keys.has(id)) return '';
+    const b = bucketOf(px || 480), key = id + '|' + b;
+    if (thumbs.has(key)) {
+      const cached = thumbs.get(key); keepThumb(key, cached); return cached;
+    }
+    if (failedThumbs.has(key)) return '';
+    if (!thumbPending[key]) {
+      thumbPending[key] = true;
+      thumbQ = thumbQ.then(async () => {
+        const url = await getAsync(id);
+        if (!url || !keys.has(id)) return;
+        const src = await makeThumb(url, b);
+        if (src && keys.has(id)) keepThumb(key, src);
+        else failedThumbs.add(key);
+      }).catch(e => { failedThumbs.add(key); console.warn('缩略图生成失败', e); })
+        .then(() => { delete thumbPending[key]; notify(); });
     }
     return '';
   }
 
+  // all() 仅作为旧 UI 的“照片是否存在”索引；不能用于读取照片内容。
+  const indexOnly = () => Object.fromEntries(Array.from(keys, k => [k, true]));
   if (!window.PhotoStore) window.PhotoStore = {
     ready: () => ready,
-    all: () => Object.assign({}, cache),
-    get: id => cache[id] || null,
+    all: indexOnly,
+    allAsync: async () => {
+      await ready;
+      const out = {};
+      for (const id of keys) { const data = await getAsync(id); if (data) out[id] = data; }
+      return out;
+    },
+    ids: () => Array.from(keys),
+    has: id => keys.has(id),
+    get: id => originals.get(id) || null,
+    getAsync,
     thumb: thumbOf,
     stampOf: id => (meta[id] && meta[id].t) || null,
-    // 供同步用：这台设备现在有哪些照片
-    ids: () => Object.keys(cache),
+    async move(from, to) {
+      await ready;
+      if (!keys.has(from) || keys.has(to) || from === to) return false;
+      const data = await getAsync(from);
+      if (!data) return false;
+      await tx('readwrite', st => { st.put(data, to); st.delete(from); });
+      keys.add(to); keys.delete(from);
+      meta[to] = meta[from] || { t: Date.now() }; delete meta[from];
+      originals.delete(from); remember(to, data); dropThumbs(from); dropThumbs(to);
+      saveMeta(); notify(); return true;
+    },
     set(id, url) {
-      if (url) { cache[id] = url; stampNow(id); saveMeta(); }
-      else { delete cache[id]; delete meta[id]; dropThumbs(id); saveMeta(); }
+      if (url) { keys.add(id); remember(id, url); stampNow(id); dropThumbs(id); saveMeta(); }
+      else { keys.delete(id); originals.delete(id); delete meta[id]; dropThumbs(id); saveMeta(); }
       notify();
-      return tx('readwrite', s => url ? s.put(url, id) : s.delete(id))
-        .catch(() => {})
+      return tx('readwrite', st => url ? st.put(url, id) : st.delete(id))
+        .catch(e => { console.warn('照片保存失败', e); throw e; })
         .then(() => { notify(); setTimeout(notify, 40); });
     },
-    // 一次塞多张：从 prefix 之后找空号，依次占位
     setMany(prefix, urls) {
       const added = [];
       let n = 0;
       urls.forEach(u => {
-        while (cache[prefix + n]) n++;
-        cache[prefix + n] = u; stampNow(prefix + n); added.push([prefix + n, u]); n++;
+        while (keys.has(prefix + n)) n++;
+        const id = prefix + n;
+        keys.add(id); remember(id, u); stampNow(id); dropThumbs(id);
+        added.push([id, u]); n++;
       });
-      saveMeta();
-      notify();
-      return tx('readwrite', s => { added.forEach(p => s.put(p[1], p[0])); })
-        .catch(() => {})
+      saveMeta(); notify();
+      return tx('readwrite', st => { added.forEach(pair => st.put(pair[1], pair[0])); })
         .then(() => { notify(); setTimeout(notify, 40); });
     },
-    replaceAll(obj) {
-      Object.keys(cache).forEach(k => delete cache[k]);
-      Object.keys(thumbs).forEach(k => delete thumbs[k]);
-      Object.assign(cache, obj || {});
-      notify();
-      return tx('readwrite', s => { s.clear(); Object.keys(cache).forEach(k => s.put(cache[k], k)); }).catch(() => {});
+    async replaceAll(obj) {
+      await ready;
+      const data = obj || {};
+      // 数据迁移不自动执行，仅用户主动导入备份或清空时执行。
+      await tx('readwrite', st => { st.clear(); Object.keys(data).forEach(k => st.put(data[k], k)); });
+      keys.clear(); originals.clear(); thumbs.clear(); failedThumbs.clear();
+      Object.keys(data).forEach(k => { keys.add(k); remember(k, data[k]); });
+      meta = {}; saveMeta(); notify();
+    },
+    async sizes() {
+      await ready;
+      let chars = 0;
+      // 一张一张读，不把所有 base64 留在内存中。
+      for (const id of keys) {
+        const url = await getAsync(id);
+        if (url) chars += url.length;
+      }
+      return { count: keys.size, chars };
     },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); }
   };
@@ -173,8 +224,8 @@
   // ── 大图查看器 ────────────────────────────────────────
   let lb = null;
   function lightbox(urls, index, ids) {
-    if (!urls.length) return;
-    let i = Math.max(0, Math.min(index || 0, urls.length - 1));
+    if (!urls.length && !(ids && ids.length)) return;
+    let i = Math.max(0, Math.min(index || 0, (ids && ids.length ? ids.length : urls.length) - 1));
     if (!lb) {
       lb = document.createElement('div');
       lb.setAttribute('data-photo-lightbox', '');
@@ -197,13 +248,13 @@
             'background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,\'Noto Sans SC\',sans-serif;cursor:pointer">设为封面</button>' +
           '</div>';
       document.body.appendChild(lb);
-      // 关掉时把大图从 <img> 上拿掉，让浏览器放掉那张原图的解码内存
-      const close = () => { lb.style.display = 'none'; lb._urls = null; lb.querySelector('img').removeAttribute('src'); };
+      // 关闭后从 img 上释放大图，且让未完成的异步读取失效。
+      const close = () => { lb._generation++; lb.style.display = 'none'; lb._urls = null; lb._ids = null; lb.querySelector('img').removeAttribute('src'); };
       lb.addEventListener('click', e => { if (e.target === lb) close(); });
       lb.querySelector('[data-x]').addEventListener('click', close);
       const step = d => {
-        if (!lb._urls) return;
-        lb._i = (lb._i + d + lb._urls.length) % lb._urls.length;
+        if (!lb._ids) return;
+        lb._i = (lb._i + d + lb._ids.length) % lb._ids.length;
         paintLb();
       };
       lb.querySelector('[data-p]').addEventListener('click', e => { e.stopPropagation(); step(-1); });
@@ -223,7 +274,6 @@
         if (e.key === 'ArrowLeft') step(-1);
         if (e.key === 'ArrowRight') step(1);
       });
-      // 手机上左右滑动翻页
       let x0 = null;
       lb.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
       lb.addEventListener('touchend', e => {
@@ -233,22 +283,35 @@
         x0 = null;
       }, { passive: true });
     }
-    lb._urls = urls; lb._ids = ids || []; lb._i = i;
+    lb._generation = (lb._generation || 0) + 1;
+    lb._ids = ids && ids.length ? ids : urls.map((_, j) => String(j));
+    lb._urls = urls;
+    lb._i = i;
     lb.style.display = 'flex';
     paintLb();
   }
-  function paintLb() {
-    const many = lb._urls.length > 1;
-    lb.querySelector('img').src = lb._urls[lb._i];
+  async function paintLb() {
+    const generation = ++lb._generation;
+    const ids = lb._ids || [];
+    if (!ids.length) return;
+    const i = lb._i, id = ids[i], many = ids.length > 1;
+    const img = lb.querySelector('img');
+    img.removeAttribute('src');
     lb.querySelector('[data-p]').style.display = many ? 'block' : 'none';
     lb.querySelector('[data-n]').style.display = many ? 'block' : 'none';
     const c = lb.querySelector('[data-c]');
-    const id = lb._ids && lb._ids[lb._i];
     const t = id ? window.PhotoStore.stampOf(id) : null;
     const when = t ? new Date(t).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
-    const count = many ? (lb._i + 1) + ' / ' + lb._urls.length : '';
-    c.textContent = [when, count].filter(Boolean).join(' \u00b7 ');
+    const count = many ? (i + 1) + ' / ' + ids.length : '';
+    c.textContent = [when, count].filter(Boolean).join(' · ');
     c.style.display = c.textContent ? 'block' : 'none';
+    try {
+      const url = (lb._urls && lb._urls[i]) || await window.PhotoStore.getAsync(id);
+      if (generation !== lb._generation || lb.style.display === 'none') return;
+      if (url) img.src = url;
+    } catch (e) {
+      if (generation === lb._generation) c.textContent = '照片读取失败，请重试';
+    }
   }
   window.PhotoStore.view = lightbox;
 
@@ -344,21 +407,17 @@
       this._paint();
     }
     // 同组照片一起看，从当前这张开始
-    _view() {
-      const url = window.PhotoStore.get(this.id);
-      if (!url) return;
+    async _view() {
       const group = this.getAttribute('data-group');
-      let urls = [url], ids = [this.id], idx = 0;
+      let ids = [this.id];
       if (group) {
-        const sibs = Array.prototype.slice.call(document.querySelectorAll('photo-slot[data-group="' + group + '"]'))
-          .filter(el => window.PhotoStore.get(el.id));
-        if (sibs.length) {
-          urls = sibs.map(el => window.PhotoStore.get(el.id));
-          ids = sibs.map(el => el.id);
-          idx = Math.max(0, ids.indexOf(this.id));
-        }
+        ids = Array.prototype.slice.call(document.querySelectorAll('photo-slot[data-group="' + group + '"]'))
+          .map(el => el.id).filter(id => window.PhotoStore.has(id));
       }
-      window.PhotoStore.view(urls, idx, ids);
+      const idx = Math.max(0, ids.indexOf(this.id));
+      // 大图查看器会持有已显示的原图；限制单次加载，避免 68 张同时解码。
+      const focusId = ids[idx] || this.id;
+      window.PhotoStore.view([], idx, ids);
     }
 
     async _ingestMany(files) {
@@ -395,8 +454,8 @@
     }
     _paint() {
       const id = this.id;
-      const url = id ? window.PhotoStore.get(id) : null;
-      if (!url) {
+      const exists = id && window.PhotoStore.has(id);
+      if (!exists) {
         this._shown = null;
         this._img.removeAttribute('src'); this._img.style.display = 'none'; this.removeAttribute('data-filled');
         return;
@@ -408,7 +467,7 @@
       const px = Math.max(this.clientWidth, this.clientHeight) * (window.devicePixelRatio || 1);
       const t = window.PhotoStore.thumb(id, px || 480);
       if (!t) return;   // 生成中，好了会 notify 再来一次
-      const key = id + '|' + url.length + '|' + t.length;
+      const key = id + '|' + t.length + '|' + t.slice(0, 24);
       if (this._shown === key) return;   // 同一张图不重复设置 src
       this._img.src = t; this._img.style.display = 'block'; this._shown = key;
     }
