@@ -40,16 +40,77 @@
 
   const notify = () => subs.forEach(fn => fn());
 
+  // ── 缩略图 ───────────────────────────────────────────
+  // 原图（可能好几 MB）只负责保存、同步、在大图查看器里看。
+  // 格子和列表一律用小缩略图，而且一次只解一张原图 ——
+  // 手机一口气解几十张大图会把页面内存撑爆，iOS 直接杀掉页面。
+  const thumbs = {};          // 'id|px' -> { len, src }
+  const thumbPending = {};    // 'id|px|len' -> true
+  let thumbQ = Promise.resolve();
+  const bucketOf = px => px <= 240 ? 240 : px <= 480 ? 480 : px <= 800 ? 800 : 1200;
+  const dropThumbs = id => { [240, 480, 800, 1200].forEach(b => { delete thumbs[id + '|' + b]; }); };
+
+  function makeThumb(url, px) {
+    return new Promise(res => {
+      const im = new Image();
+      const done = v => { im.onload = im.onerror = null; im.src = ''; res(v); };
+      im.onload = () => {
+        try {
+          const w = im.naturalWidth, h = im.naturalHeight;
+          const k = Math.min(1, px / Math.max(w, h));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+          const g = c.getContext('2d');
+          g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+          g.drawImage(im, 0, 0, c.width, c.height);
+          const out = c.toDataURL('image/jpeg', 0.82);
+          c.width = c.height = 0;
+          done(out);
+        } catch (e) { done(''); }
+      };
+      im.onerror = () => done('');
+      im.src = url;
+    });
+  }
+
+  // 同步取：有现成的缩略图就直接返回；没有就排队生成（一次一张），
+  // 生成完 notify 一下让页面重画。生成中返回空字符串。
+  function thumbOf(id, px) {
+    const url = cache[id];
+    if (!url) return '';
+    const b = bucketOf(px || 480);
+    const key = id + '|' + b;
+    const t = thumbs[key];
+    if (t && t.len === url.length) return t.src;
+    const pk = key + '|' + url.length;
+    if (!thumbPending[pk]) {
+      thumbPending[pk] = true;
+      thumbQ = thumbQ
+        .then(() => new Promise(r => setTimeout(r, 0)))   // 让出主线程，别卡住点击
+        .then(async () => {
+          const cur = cache[id];
+          if (cur && cur.length === url.length) {
+            const src = await makeThumb(cur, b);
+            if (cache[id] && cache[id].length === url.length) thumbs[key] = { len: url.length, src: src || cur };
+          }
+        })
+        .catch(() => {})
+        .then(() => { delete thumbPending[pk]; notify(); });
+    }
+    return '';
+  }
+
   if (!window.PhotoStore) window.PhotoStore = {
     ready: () => ready,
     all: () => Object.assign({}, cache),
     get: id => cache[id] || null,
+    thumb: thumbOf,
     stampOf: id => (meta[id] && meta[id].t) || null,
     // 供同步用：这台设备现在有哪些照片
     ids: () => Object.keys(cache),
     set(id, url) {
       if (url) { cache[id] = url; stampNow(id); saveMeta(); }
-      else { delete cache[id]; delete meta[id]; saveMeta(); }
+      else { delete cache[id]; delete meta[id]; dropThumbs(id); saveMeta(); }
       notify();
       return tx('readwrite', s => url ? s.put(url, id) : s.delete(id))
         .catch(() => {})
@@ -71,12 +132,26 @@
     },
     replaceAll(obj) {
       Object.keys(cache).forEach(k => delete cache[k]);
+      Object.keys(thumbs).forEach(k => delete thumbs[k]);
       Object.assign(cache, obj || {});
       notify();
       return tx('readwrite', s => { s.clear(); Object.keys(cache).forEach(k => s.put(cache[k], k)); }).catch(() => {});
     },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); }
   };
+
+  // iPhone 上所有浏览器（含 iOS 版 Chrome）底层都是 WebKit，它不能把 canvas 导出成 WebP，
+  // 会悄悄改导出 PNG —— 一张 2400px 的照片就是好几 MB。所以先探一下，不支持就用 JPEG。
+  let outType = null;
+  function pickType() {
+    if (outType) return outType;
+    try {
+      const t = document.createElement('canvas');
+      t.width = t.height = 1;
+      outType = /^data:image\/webp/.test(t.toDataURL('image/webp', 0.5)) ? 'image/webp' : 'image/jpeg';
+    } catch (e) { outType = 'image/jpeg'; }
+    return outType;
+  }
 
   async function encode(file) {
     const bmp = await createImageBitmap(file);
@@ -85,8 +160,13 @@
       const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
       const c = document.createElement('canvas');
       c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
-      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-      return c.toDataURL('image/webp', 0.88);
+      const g = c.getContext('2d');
+      const type = pickType();
+      if (type === 'image/jpeg') { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }  // JPEG 没有透明，垫白底
+      g.drawImage(bmp, 0, 0, c.width, c.height);
+      const out = c.toDataURL(type, type === 'image/webp' ? 0.88 : 0.86);
+      c.width = c.height = 0;   // 立刻放掉画布内存
+      return out;
     } finally { bmp.close && bmp.close(); }
   }
 
@@ -117,7 +197,8 @@
             'background:#c67139;color:#fdf8ee;font:800 12px/1 Nunito,\'Noto Sans SC\',sans-serif;cursor:pointer">设为封面</button>' +
           '</div>';
       document.body.appendChild(lb);
-      const close = () => { lb.style.display = 'none'; lb._urls = null; };
+      // 关掉时把大图从 <img> 上拿掉，让浏览器放掉那张原图的解码内存
+      const close = () => { lb.style.display = 'none'; lb._urls = null; lb.querySelector('img').removeAttribute('src'); };
       lb.addEventListener('click', e => { if (e.target === lb) close(); });
       lb.querySelector('[data-x]').addEventListener('click', close);
       const step = d => {
@@ -170,6 +251,16 @@
     c.style.display = c.textContent ? 'block' : 'none';
   }
   window.PhotoStore.view = lightbox;
+
+  // 还没滚到眼前的格子不解图；滚到离屏幕 400px 以内再开始生成缩略图
+  const io = 'IntersectionObserver' in window
+    ? new IntersectionObserver(entries => entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        e.target._seen = true;
+        e.target._paint();
+      }), { rootMargin: '400px 0px' })
+    : null;
 
   class PhotoSlot extends HTMLElement {
     connectedCallback() {
@@ -245,7 +336,7 @@
       window.PhotoStore.ready().then(() => this._paint());
       this._paint();
     }
-    disconnectedCallback() { this._unsub && this._unsub(); }
+    disconnectedCallback() { this._unsub && this._unsub(); if (io) io.unobserve(this); }
     static get observedAttributes() { return ['id', 'placeholder', 'prefix', 'acts']; }
     attributeChangedCallback(n) {
       if (!this._built) return;
@@ -303,9 +394,23 @@
       } finally { this.removeAttribute('data-busy'); }
     }
     _paint() {
-      const url = this.id ? window.PhotoStore.get(this.id) : null;
-      if (url) { this._img.src = url; this._img.style.display = 'block'; this.setAttribute('data-filled', ''); }
-      else { this._img.removeAttribute('src'); this._img.style.display = 'none'; this.removeAttribute('data-filled'); }
+      const id = this.id;
+      const url = id ? window.PhotoStore.get(id) : null;
+      if (!url) {
+        this._shown = null;
+        this._img.removeAttribute('src'); this._img.style.display = 'none'; this.removeAttribute('data-filled');
+        return;
+      }
+      // 先标记「有照片」：占位图收起、点一下能开大图；图本身等滚到眼前再画
+      this.setAttribute('data-filled', '');
+      if (!this._seen && io) { io.observe(this); return; }
+      // 格子里只放缩略图（按格子实际像素挑档），原图留给大图查看器
+      const px = Math.max(this.clientWidth, this.clientHeight) * (window.devicePixelRatio || 1);
+      const t = window.PhotoStore.thumb(id, px || 480);
+      if (!t) return;   // 生成中，好了会 notify 再来一次
+      const key = id + '|' + url.length + '|' + t.length;
+      if (this._shown === key) return;   // 同一张图不重复设置 src
+      this._img.src = t; this._img.style.display = 'block'; this._shown = key;
     }
   }
   if (!customElements.get('photo-slot')) customElements.define('photo-slot', PhotoSlot);

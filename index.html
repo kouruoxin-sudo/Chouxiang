@@ -2968,7 +2968,12 @@ class Component extends DCLogic {
   // 照片是 data URL，里面有 ";base64," —— 走 style 的洞会被截断，
   // 所以缩略图直接生成一个 <img>
   thumbElOf(d) {
-    const u = this.thumbOf(d);
+    const id = this.thumbIdOf(d);
+    if (!id) return null;
+    // 照片原图是几 MB 的大图，66px 的小格子绝不能直接用原图（整页渲染一次就是几十张原图同时解码）。
+    // 走 PhotoStore.thumb：一次解一张、缓存小图；还没生成好就先空着，好了会自动重画。
+    const ps = window.PhotoStore;
+    const u = ps.thumb ? ps.thumb(id, 240) : ps.get(id);
     if (!u) return null;
     return React.createElement('img', {
       src: u, alt: '',
@@ -2979,15 +2984,21 @@ class Component extends DCLogic {
   // 缩略图：你指定的封面 → 成品照 → 菜谱截图 → 打卡照片
   // 全部按「这道菜的 id」自动匹配，不用你改文件名
   thumbOf(d) {
+    const id = this.thumbIdOf(d);
+    return id ? window.PhotoStore.get(id) : '';
+  }
+
+  // 选哪张照片当这道菜的缩略图（只返回照片 id，不碰图片本身）
+  thumbIdOf(d) {
     if (!window.PhotoStore || !d) return '';
     const all = window.PhotoStore.all();
     const covers = this.state.covers || {};
-    if (covers['dish:' + d.id] && all[covers['dish:' + d.id]]) return all[covers['dish:' + d.id]];
-    if (all['dish-' + d.id]) return all['dish-' + d.id];
-    if (all['dish-photo-' + d.id]) return all['dish-photo-' + d.id];
+    if (covers['dish:' + d.id] && all[covers['dish:' + d.id]]) return covers['dish:' + d.id];
+    if (all['dish-' + d.id]) return 'dish-' + d.id;
+    if (all['dish-photo-' + d.id]) return 'dish-photo-' + d.id;
     const pre = ['dish-' + d.id + '-', 'dish-recipe-' + d.id, 'dishlog-' + d.id + '-'];
     const keys = Object.keys(all).filter(k => pre.some(p => k.indexOf(p) === 0)).sort();
-    return keys.length ? all[keys[0]] : '';
+    return keys.length ? keys[0] : '';
   }
 
   // 设为封面：谁的封面看当前在哪个页面
