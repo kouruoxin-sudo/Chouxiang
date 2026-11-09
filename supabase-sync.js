@@ -10,7 +10,15 @@
   const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
   let client = null, clientKey = '', me = null, channel = null;
-  const subs = new Set(), authSubs = new Set(), rowSubs = new Set();
+  let recoveryMode = false;
+  // The redirect fragment can arrive before the user enters URL/key on a new browser.
+  // Never store the access token in our own storage.
+  const recoveryFromLink = /(?:^|[&#])type=recovery(?:&|$)/.test(window.location.hash || '');
+  const subs = new Set(), authSubs = new Set(), rowSubs = new Set(), recoverySubs = new Set();
+  const setRecovery = on => {
+    recoveryMode = !!on;
+    recoverySubs.forEach(fn => fn(recoveryMode));
+  };
   const state = { status: 'off', message: '还没连云端', lastSync: null, pending: 0, live: false };
 
   const readJSON = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) || fb; } catch (e) { return fb; } };
@@ -51,14 +59,21 @@
       auth: { persistSession: true, autoRefreshToken: true, storageKey: 'chouxiang-auth' }
     });
     clientKey = sig;
-    client.auth.onAuthStateChange((_e, session) => {
+    const thisClient = client;
+    thisClient.auth.onAuthStateChange((event, session) => {
+      if (client !== thisClient) return; // An old client must not overwrite new login state.
+      if (event === 'PASSWORD_RECOVERY' || (recoveryFromLink && session)) setRecovery(true);
       me = (session && session.user) || null;
       authSubs.forEach(fn => fn(me));
       if (!me) closeLive();
     });
-    const { data } = await client.auth.getSession();
+    const { data, error } = await thisClient.auth.getSession();
+    if (client !== thisClient) return client;
+    if (error) throw error;
     me = (data && data.session && data.session.user) || null;
-    return client;
+    if (me && recoveryFromLink) setRecovery(true);
+    authSubs.forEach(fn => fn(me));
+    return thisClient;
   }
 
   // Supabase 暂停时返回的是网络错误或 503——统一当成「离线」，不当成出错
@@ -108,7 +123,8 @@
 
     setConfig(url, key) {
       writeJSON(CFG_KEY, { url: (url || '').trim(), key: (key || '').trim() });
-      client = null; me = null; closeLive();
+      closeLive(); client = null; clientKey = ''; me = null; setRecovery(false);
+      authSubs.forEach(fn => fn(null));
       emit(this.configured()
         ? { status: 'connecting', message: '正在连…' }
         : { status: 'off', message: '还没连云端' });
@@ -144,6 +160,17 @@
 
     subscribe(fn) { subs.add(fn); fn(Object.assign({}, state)); return () => subs.delete(fn); },
     onAuth(fn) { authSubs.add(fn); fn(me); return () => authSubs.delete(fn); },
+    onRecovery(fn) { recoverySubs.add(fn); fn(recoveryMode); return () => recoverySubs.delete(fn); },
+    async updatePassword(password) {
+      const sb = await getClient();
+      if (!sb) throw new Error('请先填写 Supabase URL 和 Key');
+      const { data, error: sessionError } = await sb.auth.getSession();
+      if (sessionError || !data || !data.session) throw new Error('重置链接已过期，请重新申请密码重置邮件');
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
+      setRecovery(false);
+      return true;
+    },
     onRemoteRow(fn) { rowSubs.add(fn); return () => rowSubs.delete(fn); },
 
     // ── 登录 ─────────────────────────────────────────────
@@ -165,6 +192,7 @@
         throw error;
       }
       me = data.user;
+      authSubs.forEach(fn => fn(me));
       emit({ status: 'connecting', message: '登录好了，正在同步…' });
       return me;
     },
